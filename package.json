@@ -22,7 +22,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/relazio/plugin-sdk.git"
+    "url": "git+https://github.com/relazio/plugin-sdk.git"
   },
   "files": [
     "dist",
@@ -49,4 +49,3 @@
     "node": ">=18.0.0"
   }
 }
-
