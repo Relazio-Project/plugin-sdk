@@ -31,11 +31,17 @@ Il sistema plugin esterni della piattaforma è **PRODUCTION READY** (Dicembre 20
 
 ### SDK Packages Status
 
-- ✅ `@relazio/plugin-sdk` - NPM package (TypeScript/JavaScript) - **IMPLEMENTATO**
+- ✅ `@relazio/plugin-sdk` - NPM package (TypeScript/JavaScript) - **COMPLETO** ⭐
+  - ✅ Core plugin system
+  - ✅ Sync & async transforms  
+  - ✅ HMAC signature utilities
+  - ✅ Job progress tracking
+  - ✅ Express server integration
+  - ✅ **Multi-tenant support** (NEW!)
 - [ ] `relazio-plugin-sdk` - PyPI package (Python) - Q1 2026
 - [ ] CLI tool per scaffold plugin - Q1 2026
 - [ ] Mock platform per testing locale - Q2 2026
-- ✅ Repository esempi plugin - **3 esempi disponibili**
+- ✅ Repository esempi plugin - **4 esempi disponibili**
 
 ---
 
