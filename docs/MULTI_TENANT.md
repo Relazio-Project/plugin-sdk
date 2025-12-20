@@ -1,411 +1,349 @@
-# Multi-Tenancy Guide
+# Sistema Multi-Tenant nell'SDK Relazio
 
-## 🏢 Plugin Multi-Tenant
+## 📋 Panoramica
 
-Un plugin **multi-tenant** può servire **multiple organizations** contemporaneamente, ognuna con:
-- ✅ Webhook secret separato
-- ✅ Configurazione separata (API keys, settings)
-- ✅ Isolamento dei dati
+L'SDK Relazio supporta nativamente il **multi-tenant**, permettendo a un singolo plugin di servire **multiple organizzazioni** contemporaneamente, ognuna con il proprio webhook secret univoco.
 
-### 🆚 Single-Tenant vs Multi-Tenant
+---
 
-#### Single-Tenant (Default)
-```typescript
-const plugin = new RelazioPlugin({ /* ... */ });
+## 🎯 Perché Multi-Tenant?
 
-// UN webhook secret per tutti
-plugin.setWebhookSecret('fixed-secret');
+### ❌ Senza Multi-Tenant (Problematico)
+```
+Plugin → Un solo secret → Una sola org
+```
+- Ogni organizzazione dovrebbe hostare il proprio plugin
+- Impossibile creare plugin pubblici/condivisi
+- Costi elevati di infrastruttura
 
-// ❌ NON funziona per plugin pubblici su Vercel
+### ✅ Con Multi-Tenant (Corretto)
+```
+Plugin → Registry → Secret per org-1
+                  → Secret per org-2
+                  → Secret per org-N
+```
+- Un solo plugin serve N organizzazioni
+- Plugin pubblici installabili da chiunque
+- Zero configurazione manuale
+
+---
+
+## 🚀 Come Funziona
+
+### 1. Flow di Installazione
+
+```
+User → Inserisce URL manifest in Relazio
+Relazio → GET /manifest.json
+Relazio → POST /register {organizationId, platformUrl}
+Plugin → Genera secret univoco per org
+Plugin → Salva: orgId → secret
+Plugin → Restituisce {webhookSecret}
+Relazio → Salva secret nel DB
+✅ Plugin installato!
 ```
 
-#### Multi-Tenant (Production)
-```typescript
-const plugin = new RelazioPlugin({ /* ... */ });
+### 2. Flow di Esecuzione Transform
 
-// Secret provider gestisce multiple organizations
-plugin.enableMultiTenant(secretProvider);
-
-// ✅ Funziona per plugin pubblici su Vercel
+```
+User → Esegue transform in Relazio
+Relazio → POST /transform {input, callbackUrl, organizationId}
+         → Header: X-Organization-Id: org-123
+Plugin → Identifica org dal header
+Plugin → Esegue transform
+Plugin → (async) Invia webhook con secret dell'org
+Relazio → Verifica signature con secret dell'org
+✅ Risultati visualizzati!
 ```
 
 ---
 
-## 🚀 Quick Start Multi-Tenant
+## 💻 Implementazione
 
-### Opzione 1: Auto (In-Memory)
-
-Per sviluppo/testing rapido:
+### Quick Start (3 righe!)
 
 ```typescript
-const plugin = new RelazioPlugin({ /* ... */ });
+import { RelazioPlugin } from '@relazio/plugin-sdk';
 
-// Abilita multi-tenancy con provider in-memory
-const secrets = plugin.enableMultiTenantInMemory();
-
-// Registra organizations
-secrets.setSecret('org-123', 'webhook-secret-123');
-secrets.setSecret('org-456', 'webhook-secret-456');
-
-plugin.start({ port: 3000, multiTenant: true });
-```
-
-### Opzione 2: Custom Provider (Production)
-
-Con database persistente:
-
-```typescript
-import { RelazioPlugin, WebhookSecretProvider } from '@relazio/plugin-sdk';
-import { db } from './database';
-
-class DatabaseSecretProvider implements WebhookSecretProvider {
-  async getSecret(organizationId: string): Promise<string | null> {
-    const org = await db.organizations.findOne({ id: organizationId });
-    return org?.webhookSecret || null;
-  }
-}
-
-const plugin = new RelazioPlugin({ /* ... */ });
-plugin.enableMultiTenant(new DatabaseSecretProvider());
-```
-
----
-
-## 📋 Implementazione Completa
-
-### 1. Setup Plugin
-
-```typescript
-import { RelazioPlugin, WebhookSecretProvider } from '@relazio/plugin-sdk';
-
-// Secret provider personalizzato
-class MySecretProvider implements WebhookSecretProvider {
-  private secrets = new Map<string, string>();
-
-  async getSecret(organizationId: string): Promise<string | null> {
-    // In produzione: query a database
-    return this.secrets.get(organizationId) || null;
-  }
-
-  // Helper per registrare nuove organizations
-  registerOrg(orgId: string, secret: string): void {
-    this.secrets.set(orgId, secret);
-  }
-}
-
-const secretProvider = new MySecretProvider();
 const plugin = new RelazioPlugin({
   id: 'my-plugin',
   name: 'My Plugin',
   version: '1.0.0',
-  author: 'Me',
-  description: 'Multi-tenant plugin',
-  category: 'network'
+  author: 'Your Name',
+  description: 'My awesome plugin',
+  category: 'network',
 });
 
-plugin.enableMultiTenant(secretProvider);
-```
-
-### 2. Configurazione per Organization
-
-```typescript
-// Ogni organization ha la propria configurazione
-plugin.configure({
-  apiKey: {
-    type: 'string',
-    label: 'API Key',
-    description: 'Your API key',
-    required: true,
-    secret: true
-  }
+// ⭐ Abilita multi-tenant (in-memory)
+plugin.start({
+  port: 3000,
+  multiTenant: true, // ← Questo è tutto!
 });
 ```
 
-### 3. Transform con Organization ID
+### Con Storage Persistente (Produzione)
 
 ```typescript
-plugin.transform({
-  id: 'lookup',
-  name: 'Lookup',
-  description: 'Looks up data',
-  inputType: 'domain',
-  outputTypes: ['ip'],
-  
-  handler: async (input, config) => {
-    // Organization ID disponibile nell'input
-    const orgId = input.organizationId;
-    
-    // Config è specifica per questa organization
-    const apiKey = config.apiKey;
-    
-    console.log(`Processing for org: ${orgId}`);
-    console.log(`Using API key: ${apiKey}`);
-    
-    // Processa usando config dell'organization
-    return { entities: [], edges: [] };
-  }
-});
-```
+import { RelazioPlugin, InstallationStorage, Installation } from '@relazio/plugin-sdk';
+import Redis from 'ioredis';
 
-### 4. Transform Async Multi-Tenant
-
-```typescript
-plugin.asyncTransform({
-  id: 'deep-scan',
-  name: 'Deep Scan',
-  description: 'Long scan',
-  inputType: 'domain',
-  outputTypes: ['ip'],
-  
-  handler: async (input, config, job) => {
-    const orgId = input.organizationId;
-    
-    // Il job usa automaticamente il webhook secret corretto per questa org
-    await job.updateProgress(50, `Scanning for ${orgId}...`);
-    
-    return { entities: [], edges: [] };
-  }
-});
-```
-
----
-
-## 🔐 Registrazione Organizations
-
-### Endpoint di Registrazione (Opzionale)
-
-Puoi esporre un endpoint per registrare organizations:
-
-```typescript
-import express from 'express';
-
-const app = express();
-
-// Endpoint per registrare nuove organizations
-app.post('/register', async (req, res) => {
-  const { organizationId, webhookSecret } = req.body;
-  
-  // Valida richiesta (es. token admin, etc.)
-  if (!isAuthorized(req)) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-  
-  // Registra organization
-  await secretProvider.registerOrg(organizationId, webhookSecret);
-  
-  res.json({ success: true });
-});
-```
-
-### Flusso Installazione
-
-```
-1. User installa plugin in Relazio
-   ↓
-2. Relazio genera webhook secret unico
-   ↓
-3. Relazio mostra secret all'utente
-   ↓
-4. User (o admin) registra organization nel plugin:
-   POST https://my-plugin.vercel.app/register
-   {
-     "organizationId": "org-123",
-     "webhookSecret": "secret-from-relazio"
-   }
-   ↓
-5. Plugin può ora processare richieste da quella organization
-```
-
----
-
-## 🧪 Testing Multi-Tenant
-
-### Test con cURL
-
-```bash
-# Richiesta da org-alpha
-curl -X POST http://localhost:3000/lookup \
-  -H "Content-Type: application/json" \
-  -H "X-Organization-Id: org-alpha" \
-  -d '{
-    "transformId": "lookup",
-    "input": {
-      "entity": {
-        "id": "1",
-        "type": "domain",
-        "value": "example.com"
-      },
-      "config": {
-        "apiKey": "org-alpha-key-123"
-      }
-    }
-  }'
-
-# Richiesta da org-beta (config diversa)
-curl -X POST http://localhost:3000/lookup \
-  -H "Content-Type: application/json" \
-  -H "X-Organization-Id: org-beta" \
-  -d '{
-    "transformId": "lookup",
-    "input": {
-      "entity": {
-        "id": "2",
-        "type": "domain",
-        "value": "example.com"
-      },
-      "config": {
-        "apiKey": "org-beta-key-456"
-      }
-    }
-  }'
-```
-
----
-
-## 💾 Secret Providers Esempi
-
-### PostgreSQL Provider
-
-```typescript
-import { Pool } from 'pg';
-
-class PostgresSecretProvider implements WebhookSecretProvider {
-  private pool: Pool;
-
-  constructor(connectionString: string) {
-    this.pool = new Pool({ connectionString });
-  }
-
-  async getSecret(organizationId: string): Promise<string | null> {
-    const result = await this.pool.query(
-      'SELECT webhook_secret FROM organizations WHERE id = $1',
-      [organizationId]
-    );
-    return result.rows[0]?.webhook_secret || null;
-  }
-}
-
-// Usage
-const provider = new PostgresSecretProvider(process.env.DATABASE_URL!);
-plugin.enableMultiTenant(provider);
-```
-
-### Redis Provider
-
-```typescript
-import { createClient } from 'redis';
-
-class RedisSecretProvider implements WebhookSecretProvider {
-  private client;
+// Custom storage con Redis
+class RedisStorage implements InstallationStorage {
+  private redis: Redis;
 
   constructor() {
-    this.client = createClient({ url: process.env.REDIS_URL });
-    this.client.connect();
+    this.redis = new Redis(process.env.REDIS_URL);
   }
 
-  async getSecret(organizationId: string): Promise<string | null> {
-    return await this.client.get(`org:${organizationId}:secret`);
-  }
-}
-
-// Usage
-const provider = new RedisSecretProvider();
-plugin.enableMultiTenant(provider);
-```
-
-### File-based Provider (Simple)
-
-```typescript
-import fs from 'fs/promises';
-import path from 'path';
-
-class FileSecretProvider implements WebhookSecretProvider {
-  private secretsPath: string;
-
-  constructor(secretsPath: string) {
-    this.secretsPath = secretsPath;
+  async get(organizationId: string): Promise<Installation | null> {
+    const data = await this.redis.get(`plugin:install:${organizationId}`);
+    return data ? JSON.parse(data) : null;
   }
 
-  async getSecret(organizationId: string): Promise<string | null> {
-    try {
-      const data = await fs.readFile(this.secretsPath, 'utf-8');
-      const secrets = JSON.parse(data);
-      return secrets[organizationId] || null;
-    } catch {
-      return null;
-    }
+  async set(organizationId: string, installation: Installation): Promise<void> {
+    await this.redis.set(
+      `plugin:install:${organizationId}`,
+      JSON.stringify(installation)
+    );
+  }
+
+  async delete(organizationId: string): Promise<boolean> {
+    const result = await this.redis.del(`plugin:install:${organizationId}`);
+    return result > 0;
+  }
+
+  async getAll(): Promise<Installation[]> {
+    const keys = await this.redis.keys('plugin:install:*');
+    const values = await Promise.all(
+      keys.map((k) => this.redis.get(k))
+    );
+    return values
+      .filter((v) => v !== null)
+      .map((v) => JSON.parse(v!));
   }
 }
 
-// secrets.json:
-// {
-//   "org-123": "secret-123",
-//   "org-456": "secret-456"
-// }
+// Usa storage custom
+const registry = new InstallationRegistry(
+  'my-plugin',
+  '1.0.0',
+  new RedisStorage()
+);
 
-const provider = new FileSecretProvider('./secrets.json');
-plugin.enableMultiTenant(provider);
+plugin.enableMultiTenant(registry);
 ```
 
 ---
 
-## 📊 Monitoring Multi-Tenant
+## 🔌 Endpoint Automatici
 
-```typescript
-// Track usage per organization
-const usage = new Map<string, number>();
+Quando abiliti `multiTenant: true`, l'SDK espone automaticamente:
 
-plugin.transform({
-  id: 'lookup',
-  name: 'Lookup',
-  // ...
-  handler: async (input, config) => {
-    const orgId = input.organizationId;
-    
-    // Incrementa contatore
-    usage.set(orgId, (usage.get(orgId) || 0) + 1);
-    
-    console.log(`Total requests from ${orgId}: ${usage.get(orgId)}`);
-    
-    return { entities: [], edges: [] };
-  }
-});
+### POST /register
+**Richiesta**:
+```json
+{
+  "organizationId": "org-abc-123",
+  "organizationName": "ACME Corp",
+  "platformUrl": "https://relazio.io",
+  "platformVersion": "2.0.0"
+}
+```
 
-// Endpoint per statistiche
-app.get('/stats', (req, res) => {
-  res.json({
-    totalOrganizations: secretProvider.count(),
-    usage: Object.fromEntries(usage)
-  });
-});
+**Risposta**:
+```json
+{
+  "webhookSecret": "whs_a1b2c3d4e5f6...",
+  "pluginId": "my-plugin",
+  "pluginVersion": "1.0.0",
+  "message": "Organization registered successfully"
+}
+```
+
+### POST /unregister
+**Richiesta**:
+```json
+{
+  "organizationId": "org-abc-123"
+}
+```
+
+**Risposta**:
+```json
+{
+  "success": true,
+  "message": "Unregistered successfully"
+}
+```
+
+### GET /stats
+**Risposta**:
+```json
+{
+  "totalInstallations": 42,
+  "activeInstallations": 35
+}
 ```
 
 ---
 
-## ✅ Best Practices
+## 🔐 Sicurezza
 
-1. **Usa provider persistente in produzione** (database, non in-memory)
-2. **Valida organization ID** in ogni richiesta
-3. **Isola dati tra organizations** (non condividere cache, etc.)
-4. **Monitora usage per organization** (rate limiting, billing)
-5. **Log organization ID** in ogni operazione
-6. **Testa con multiple organizations** prima del deploy
+### Generazione Secret
+
+Ogni organizzazione riceve un secret univoco:
+
+```typescript
+// Formato: whs_<64 caratteri hex>
+const secret = `whs_${crypto.randomBytes(32).toString('hex')}`;
+// Esempio: whs_a1b2c3d4e5f6...
+```
+
+### Verifica HMAC
+
+```typescript
+// Il plugin firma i webhook con il secret dell'org
+const signature = hmac.sign(payload, secretForOrg);
+
+// Header: X-Plugin-Signature: sha256=abc123...
+```
+
+Relazio verifica usando il secret salvato per quell'org.
+
+---
+
+## 📊 Monitoring
+
+### Statistiche Installazioni
+
+```typescript
+const registry = plugin.getRegistry();
+const stats = await registry.getStats();
+
+console.log(`Total installations: ${stats.totalInstallations}`);
+console.log(`Active (last 30 days): ${stats.activeInstallations}`);
+```
+
+### Lista Installazioni
+
+```typescript
+const installations = await registry.getAllInstallations();
+
+for (const inst of installations) {
+  console.log(`Org: ${inst.organizationId}`);
+  console.log(`Installed: ${inst.installedAt}`);
+  console.log(`Last used: ${inst.lastUsed || 'Never'}`);
+}
+```
+
+---
+
+## 🧪 Testing
+
+### Simulare Installazione
+
+```typescript
+import { InstallationRegistry } from '@relazio/plugin-sdk';
+
+const registry = new InstallationRegistry('test-plugin', '1.0.0');
+
+// Simula installazione
+const result = await registry.register({
+  organizationId: 'org-test-123',
+  organizationName: 'Test Org',
+  platformUrl: 'https://test.relazio.io',
+});
+
+console.log('Secret:', result.webhookSecret);
+
+// Recupera secret
+const secret = await registry.getWebhookSecret('org-test-123');
+```
+
+---
+
+## 🔄 Migration da Single-Tenant
+
+### Prima (Single-Tenant)
+
+```typescript
+plugin.setWebhookSecret(process.env.WEBHOOK_SECRET);
+
+plugin.start({ port: 3000 });
+```
+
+### Dopo (Multi-Tenant)
+
+```typescript
+// Rimuovi setWebhookSecret()
+
+plugin.start({ 
+  port: 3000,
+  multiTenant: true // ← Aggiungi questa riga
+});
+```
+
+**Zero breaking changes!** Le transform continuano a funzionare identiche.
+
+---
+
+## ⚠️ Best Practices
+
+### 1. **Usa Storage Persistente in Produzione**
+
+```typescript
+// ❌ NO (solo dev/test)
+plugin.start({ multiTenant: true });
+
+// ✅ SI (produzione)
+const registry = new InstallationRegistry(
+  pluginId,
+  version,
+  new RedisStorage() // o PostgreSQL, MongoDB, etc.
+);
+plugin.enableMultiTenant(registry);
+```
+
+### 2. **Traccia Last Used**
+
+L'SDK aggiorna automaticamente `lastUsed` ad ogni transform:
+
+```typescript
+// Automatico!
+await registry.updateLastUsed(organizationId);
+```
+
+### 3. **Cleanup Installazioni Inattive**
+
+```typescript
+// Cron job giornaliero
+const installations = await registry.getAllInstallations();
+const sixMonthsAgo = Date.now() - 180 * 24 * 60 * 60 * 1000;
+
+for (const inst of installations) {
+  const lastUsed = inst.lastUsed?.getTime() || inst.installedAt.getTime();
+  
+  if (lastUsed < sixMonthsAgo) {
+    console.log(`Removing inactive org: ${inst.organizationId}`);
+    await registry.unregister(inst.organizationId);
+  }
+}
+```
 
 ---
 
 ## 🎯 Esempio Completo
 
-Vedi: `examples/multi-tenant-plugin/index.ts`
+Vedi [`examples/multi-tenant-plugin/`](../examples/multi-tenant-plugin/) per un esempio completo funzionante.
 
-```bash
-cd examples/multi-tenant-plugin
-npm install
-npm run dev
+---
 
-# Test
-curl -X POST http://localhost:3003/lookup-ip \
-  -H "Content-Type: application/json" \
-  -H "X-Organization-Id: org-alpha" \
-  -d '...'
-```
+## 🔗 Link Utili
 
+- [Quick Start](../QUICKSTART.md)
+- [SDK Reference](SDK.md)
+- [Plugin Architecture](EXTERNAL_PLUGINS.md)
+
+---
+
+**Multi-tenant = Plugin scalabili per tutta la community!** 🚀

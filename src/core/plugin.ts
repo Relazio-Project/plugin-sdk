@@ -11,6 +11,7 @@ import type {
 } from './types';
 import { ManifestGenerator } from './manifest';
 import { JobQueue, type WebhookSecretProvider, InMemorySecretProvider } from '../jobs/progress';
+import { InstallationRegistry } from '../registry/installation';
 import type { Server } from '../server/express';
 
 /**
@@ -27,6 +28,7 @@ export class RelazioPlugin {
   private webhookSecret?: string;
   private multiTenant = false;
   private secretProvider?: WebhookSecretProvider;
+  private registry?: InstallationRegistry;
 
   constructor(config: PluginConfig) {
     this.config = config;
@@ -96,6 +98,14 @@ export class RelazioPlugin {
     this.multiTenant = true;
     this.secretProvider = secretProvider;
     
+    // Inizializza registry se il provider è un InstallationRegistry
+    if (secretProvider instanceof InstallationRegistry) {
+      this.registry = secretProvider;
+    } else {
+      // Crea registry separato per installazioni
+      this.registry = new InstallationRegistry(this.config.id, this.config.version);
+    }
+    
     if (this.asyncTransforms.size > 0 && !this.jobQueue) {
       this.jobQueue = new JobQueue(secretProvider);
     }
@@ -105,10 +115,17 @@ export class RelazioPlugin {
    * Abilita multi-tenancy con gestione automatica in-memory
    * Utile per development/testing
    */
-  enableMultiTenantInMemory(): InMemorySecretProvider {
-    const provider = new InMemorySecretProvider();
-    this.enableMultiTenant(provider);
-    return provider;
+  enableMultiTenantInMemory(): InstallationRegistry {
+    const registry = new InstallationRegistry(this.config.id, this.config.version);
+    this.enableMultiTenant(registry);
+    return registry;
+  }
+
+  /**
+   * Ottieni registry (solo multi-tenant)
+   */
+  getRegistry(): InstallationRegistry | undefined {
+    return this.registry;
   }
 
   /**

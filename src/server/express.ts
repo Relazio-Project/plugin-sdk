@@ -78,6 +78,67 @@ export class ExpressServer {
       });
     });
 
+    // Registration endpoint (multi-tenant)
+    if (this.options.multiTenant) {
+      this.app.post('/register', async (req: Request, res: Response) => {
+        try {
+          const registry = this.plugin.getRegistry();
+          if (!registry) {
+            res.status(501).json({ error: 'Multi-tenant not enabled' });
+            return;
+          }
+
+          const result = await registry.register(req.body);
+          res.json(result);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Registration error:', error);
+          res.status(500).json({ error: 'Registration failed', message });
+        }
+      });
+
+      // Unregister endpoint
+      this.app.post('/unregister', async (req: Request, res: Response) => {
+        try {
+          const registry = this.plugin.getRegistry();
+          if (!registry) {
+            res.status(501).json({ error: 'Multi-tenant not enabled' });
+            return;
+          }
+
+          const { organizationId } = req.body;
+          if (!organizationId) {
+            res.status(400).json({ error: 'Missing organizationId' });
+            return;
+          }
+
+          const success = await registry.unregister(organizationId);
+          res.json({ success, message: success ? 'Unregistered successfully' : 'Organization not found' });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          console.error('Unregister error:', error);
+          res.status(500).json({ error: 'Unregister failed', message });
+        }
+      });
+
+      // Stats endpoint (admin)
+      this.app.get('/stats', async (req: Request, res: Response) => {
+        try {
+          const registry = this.plugin.getRegistry();
+          if (!registry) {
+            res.status(501).json({ error: 'Multi-tenant not enabled' });
+            return;
+          }
+
+          const stats = await registry.getStats();
+          res.json(stats);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Unknown error';
+          res.status(500).json({ error: message });
+        }
+      });
+    }
+
     // Manifest endpoint
     this.app.get('/manifest.json', (req: Request, res: Response) => {
       try {

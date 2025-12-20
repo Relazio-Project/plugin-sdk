@@ -41,6 +41,18 @@ export { HMACUtils, verifyWebhookSignature } from './security/hmac';
 export { JobProgressTracker, JobQueue, InMemorySecretProvider } from './jobs/progress';
 export type { WebhookSecretProvider } from './jobs/progress';
 
+// Registry & Multi-tenant
+export { 
+  InstallationRegistry, 
+  MemoryStorage 
+} from './registry/installation';
+export type { 
+  Installation, 
+  RegistrationRequest, 
+  RegistrationResponse,
+  InstallationStorage 
+} from './registry/installation';
+
 // Server
 export { ExpressServer } from './server/express';
 export type { Server } from './server/express';
