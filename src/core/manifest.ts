@@ -36,8 +36,12 @@ export class ManifestGenerator {
       throw new Error('Al least one transform is required');
     }
 
-    if (!options.endpoint.startsWith('https://')) {
-      throw new Error('Endpoint must use HTTPS');
+    // Allow HTTP for localhost/development, require HTTPS for production
+    const url = new URL(options.endpoint);
+    const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1' || url.hostname === '0.0.0.0';
+    
+    if (!options.endpoint.startsWith('https://') && !isLocalhost) {
+      throw new Error('Endpoint must use HTTPS (except for localhost development)');
     }
 
     // Raccogli tutti gli input/output types
