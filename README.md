@@ -1,84 +1,30 @@
-# Relazio - Plugin SDK
+# Relazio Plugin SDK
 
-> Official SDK for building external plugins for Relazio
+Official SDK for building external plugins for the Relazio OSINT platform.
 
-[![Status](https://img.shields.io/badge/Status-In%20Development-yellow.svg)](https://github.com/relazio/plugin-sdk)
+[![npm version](https://img.shields.io/npm/v/@relazio/plugin-sdk.svg)](https://www.npmjs.com/package/@relazio/plugin-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-**Platform**: Relazio (dal latino *relatio* - relazione, rapporto)  
-**Platform Version**: 2.0.0  
-**SDK Status**: 📋 Documentation Phase  
-**Target Release**: Q1 2026
+## Overview
 
----
+The Relazio Plugin SDK enables developers to create external plugins that extend the Relazio platform's capabilities. The SDK provides a complete framework for building secure, multi-tenant plugins with minimal boilerplate code.
 
-## 📋 Overview
+## Features
 
-Questo repository contiene la documentazione e, in futuro, il codice sorgente dell'SDK ufficiale per creare plugin esterni per **Relazio**.
+- **Multi-Tenant Support**: Automatic organization management with isolated configurations
+- **Sync & Async Transforms**: Support for both immediate and long-running operations
+- **Automatic Endpoints**: Built-in `/register`, `/unregister`, and `/manifest.json` endpoints
+- **Security**: HMAC-SHA256 signature generation and validation
+- **Job Management**: Progress tracking and webhook notifications for async operations
+- **TypeScript**: Full type safety and IntelliSense support
 
-### Platform Features Implemented ✅
-
-Il sistema plugin esterni della piattaforma è **PRODUCTION READY** (Dicembre 2025):
-
-- ✅ Manifest validation (HTTPS, TLS, Zod)
-- ✅ Installation flow completo
-- ✅ Webhook system con HMAC-SHA256
-- ✅ Job queue con 7 stati
-- ✅ Rate limiting (30/min, 500/hour, 2000/day)
-- ✅ Timeout enforcement (30 min max)
-- ✅ Security completa
-- ✅ E2E testing (44 test, 91% pass)
-
-### SDK Packages Status
-
-- ✅ `@relazio/plugin-sdk` - NPM package (TypeScript/JavaScript) - **COMPLETO** ⭐
-  - ✅ Core plugin system
-  - ✅ Sync & async transforms  
-  - ✅ HMAC signature utilities
-  - ✅ Job progress tracking
-  - ✅ Express server integration
-  - ✅ **Multi-tenant support** (NEW!)
-- [ ] `relazio-plugin-sdk` - PyPI package (Python) - Q1 2026
-- [ ] CLI tool per scaffold plugin - Q1 2026
-- [ ] Mock platform per testing locale - Q2 2026
-- ✅ Repository esempi plugin - **4 esempi disponibili**
-
----
-
-## 📚 Documentazione
-
-Tutta la documentazione è disponibile nella cartella `docs/`:
-
-### Per Utenti
-
-- **[EXTERNAL_PLUGINS_README.md](docs/EXTERNAL_PLUGINS_README.md)** - Quick start guide per installare e usare plugin esterni
-
-### Per Sviluppatori
-
-- **[QUICKSTART.md](QUICKSTART.md)** - ⭐ Quick start per creare plugin (3 righe di codice!)
-- **[SDK.md](docs/SDK.md)** - ⭐ SDK API reference completa (TypeScript/Python)
-- **[MULTI_TENANT.md](docs/MULTI_TENANT.md)** - Guida multi-tenancy (architettura standard)
-- **[CONFIGURATION.md](docs/CONFIGURATION.md)** - Guida configurazione (string, number, boolean, select)
-- **[EXTERNAL_PLUGINS.md](docs/EXTERNAL_PLUGINS.md)** - Architettura sistema plugin esterni
-- **[EXTERNAL_PLUGINS_FLOW.md](docs/EXTERNAL_PLUGINS_FLOW.md)** - Flussi dettagliati step-by-step
-- **[IMPLEMENTATION_EXTERNAL_PLUGINS.md](docs/IMPLEMENTATION_EXTERNAL_PLUGINS.md)** - Piano implementazione (reference)
-
-### Reference
-
-- **[EXTERNAL_PLUGINS_COMPLETE.md](docs/EXTERNAL_PLUGINS_COMPLETE.md)** - Riepilogo completo dell'implementazione platform
-- **[PLUGIN_SYSTEM.md](docs/PLUGIN_SYSTEM.md)** - Plugin built-in (reference)
-
----
-
-## 🚀 Quick Start
-
-### Installazione
+## Installation
 
 ```bash
 npm install @relazio/plugin-sdk
 ```
 
-### Esempio Minimo
+## Quick Start
 
 ```typescript
 import { RelazioPlugin } from '@relazio/plugin-sdk';
@@ -88,11 +34,10 @@ const plugin = new RelazioPlugin({
   name: 'My Plugin',
   version: '1.0.0',
   author: 'Your Name',
-  description: 'What it does',
+  description: 'Plugin description',
   category: 'network'
 });
 
-// Registra transform
 plugin.transform({
   id: 'my-transform',
   name: 'My Transform',
@@ -100,156 +45,108 @@ plugin.transform({
   inputType: 'domain',
   outputTypes: ['ip'],
   
-  handler: async (input, config) => {
-    // input.organizationId contiene l'ID dell'organizzazione
-    console.log(`Processing for org: ${input.organizationId}`);
-    
+  async handler(input, config) {
     return {
-      entities: [
-        {
-          type: 'ip',
-          value: '8.8.8.8',
-          label: 'Google DNS'
-        }
-      ],
+      entities: [{
+        type: 'ip',
+        value: '8.8.8.8',
+        label: 'Google DNS'
+      }],
       edges: []
     };
   }
 });
 
-// Avvia server multi-tenant
-plugin.start({ 
+await plugin.start({ 
   port: 3000,
-  multiTenant: true  // ← Gestisce automaticamente tutto!
+  multiTenant: true
 });
 ```
 
-**🎉 Il plugin gestisce automaticamente:**
-- ✅ Endpoint `/register` per nuove organizzazioni
-- ✅ Generazione automatica webhook secrets
-- ✅ Gestione separata per ogni organization
-- ✅ Zero configurazione manuale necessaria!
+## Documentation
 
-### Esempi Completi
+- [Examples](./examples/) - Working plugin examples
+- [Changelog](./CHANGELOG.md) - Version history
 
-Vedi la cartella `examples/` per esempi funzionanti:
-- **Email Parser** - Transform sincrona semplice
-- **DNS Toolkit** - Multiple transforms sincrone
-- **Multi-Tenant Plugin** - Transform asincrona con multi-organization
+## Multi-Tenant Architecture
 
----
+The SDK automatically handles organization registration and management:
 
-## 🎯 Roadmap
+1. Platform requests `/register` with organization details
+2. SDK generates unique webhook secret
+3. SDK stores organization configuration
+4. Platform receives webhook secret
+5. Plugin processes requests with organization isolation
 
-### Phase 1: Documentation ✅ (Completata - Dicembre 2025)
-- [x] Architecture design
-- [x] SDK API design
-- [x] Flow documentation
-- [x] Security requirements
-- [x] Platform implementation
+## Security
 
-### Phase 2: TypeScript SDK ✅ (Completata - Dicembre 2025)
-- [x] Core SDK implementation
-- [x] Manifest generator
-- [x] HMAC signing utilities
-- [x] Webhook handler
-- [x] Job progress tracking
-- [x] Testing utilities
-- [x] Esempi funzionanti
-- [ ] NPM package publication (Q1 2026)
-- [ ] CLI tool (Q1 2026)
+All plugins must implement the following security requirements:
 
-### Phase 3: Python SDK (Q1 2026)
-- [ ] Core SDK implementation
-- [ ] Manifest generator
-- [ ] HMAC signing utilities
-- [ ] Webhook handler (Flask/FastAPI)
-- [ ] Job progress tracking
-- [ ] Testing utilities
-- [ ] CLI tool
-- [ ] PyPI package publication
+- **HTTPS**: Production endpoints must use HTTPS
+- **HMAC Signatures**: All webhooks are signed with HMAC-SHA256
+- **Rate Limiting**: Enforced by the platform (30 req/min, 500 req/hour)
+- **Timeouts**: 30s for sync transforms, 30 minutes maximum for async jobs
 
-### Phase 4: Developer Experience (Q2 2026)
-- [ ] Developer portal
-- [ ] Plugin examples repository
-- [ ] Video tutorials
-- [ ] Plugin templates (starter kits)
-- [ ] Testing playground
-- [ ] Plugin marketplace submission
+## API Reference
 
----
+### Core Classes
 
-## 🔐 Security Requirements
+#### RelazioPlugin
 
-### Mandatory (Enforced by Platform)
+Main plugin class that manages transforms and server lifecycle.
 
-- ✅ **HTTPS**: All endpoints must use HTTPS (HTTP rejected)
-- ✅ **TLS Valid**: Valid SSL certificate required
-- ✅ **HMAC Signature**: All webhooks must be signed with HMAC-SHA256
-- ✅ **Rate Limiting**: 30 req/min, 500 req/hour, 2000 req/day
-- ✅ **Timeouts**: 30s sync, 5s async response, 30 min job max
-
-### SDK Handles
-
-- HMAC signature generation
-- Webhook endpoint setup
-- Job progress tracking
-- Error handling
-- Timeout awareness
-
----
-
-## 📦 Package Structure (Future)
-
-```
-@relazio/plugin-sdk/
-├── src/
-│   ├── core/
-│   │   ├── plugin.ts          # Main Plugin class
-│   │   ├── manifest.ts        # Manifest generator
-│   │   └── types.ts           # TypeScript types
-│   ├── server/
-│   │   ├── express.ts         # Express integration
-│   │   └── fastify.ts         # Fastify integration
-│   ├── security/
-│   │   └── hmac.ts            # HMAC utilities
-│   ├── jobs/
-│   │   └── progress.ts        # Job progress tracking
-│   └── testing/
-│       └── mock-platform.ts   # Mock platform for tests
-├── examples/
-│   ├── dns-plugin/
-│   ├── ip-lookup/
-│   └── shodan-integration/
-└── docs/
-    └── (all documentation files)
+```typescript
+const plugin = new RelazioPlugin(config: PluginConfig)
 ```
 
----
+#### Transform Registration
 
-## 🤝 Contributing
+```typescript
+// Synchronous transform
+plugin.transform({
+  id: string,
+  name: string,
+  description: string,
+  inputType: EntityType,
+  outputTypes: EntityType[],
+  handler: async (input, config) => TransformResult
+})
 
-Il progetto è attualmente in fase di sviluppo. I contributi saranno benvenuti a partire da Q1 2026.
+// Asynchronous transform
+plugin.asyncTransform({
+  id: string,
+  name: string,
+  description: string,
+  inputType: EntityType,
+  outputTypes: EntityType[],
+  handler: async (input, config, job) => TransformResult
+})
+```
 
----
+#### Server Management
 
-## 📄 License
+```typescript
+await plugin.start({ 
+  port: number,
+  host?: string,
+  multiTenant?: boolean,
+  https?: { key: string, cert: string }
+})
 
-MIT License - see LICENSE file for details.
+await plugin.stop()
+```
 
----
+## Requirements
 
-## 🔗 Links
+- Node.js >= 18.0.0
+- TypeScript >= 5.0.0 (for development)
 
-- **Platform Repository**: [github.com/relazio/relazio](https://github.com/relazio/relazio)
-- **Documentation**: [docs/](docs/)
-- **Website**: Coming soon
-- **Discord**: Coming soon
+## License
 
----
+MIT License - see [LICENSE](./LICENSE) file for details.
 
-**Status**: 📋 Documentation Complete, Implementation Q1 2026  
-**Platform**: ✅ Production Ready (Dicembre 2025)  
-**SDK**: 🚧 In Development (Q1 2026)
+## Links
 
-
+- [npm Package](https://www.npmjs.com/package/@relazio/plugin-sdk)
+- [GitHub Repository](https://github.com/relazio/plugin-sdk)
+- [Issue Tracker](https://github.com/relazio/plugin-sdk/issues)

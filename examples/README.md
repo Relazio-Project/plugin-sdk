@@ -1,14 +1,15 @@
-# Examples
+# Plugin Examples
 
-Questa cartella contiene esempi funzionanti di plugin Relazio.
+This directory contains working examples of Relazio plugins demonstrating various use cases and SDK features.
 
-## Esempi Disponibili
+## Available Examples
 
-### 1. Email Parser (Sync)
+### 1. Email Parser (Sync Transform)
+
 **Directory**: `email-parser/`  
-**Porta**: 3000
+**Port**: 3000
 
-Plugin semplice con transform sincrona che estrae il dominio da un indirizzo email.
+Simple plugin with a synchronous transform that extracts domain from email addresses.
 
 ```bash
 cd email-parser
@@ -32,11 +33,12 @@ curl -X POST http://localhost:3000/extract-domain \
   }'
 ```
 
-### 2. DNS Toolkit (Multi-Transform Sync)
-**Directory**: `dns-toolkit/`  
-**Porta**: 3001
+### 2. DNS Toolkit (Multi-Transform)
 
-Plugin con 3 transforms sincrone per analisi DNS (A, MX, NS records).
+**Directory**: `dns-toolkit/`  
+**Port**: 3001
+
+Plugin with multiple synchronous transforms for DNS analysis (A, MX, NS records).
 
 ```bash
 cd dns-toolkit
@@ -46,7 +48,6 @@ npm run dev
 
 **Test**:
 ```bash
-# A Records
 curl -X POST http://localhost:3001/resolve-a \
   -H "Content-Type: application/json" \
   -d '{
@@ -59,55 +60,26 @@ curl -X POST http://localhost:3001/resolve-a \
       }
     }
   }'
-
-# MX Records
-curl -X POST http://localhost:3001/resolve-mx \
-  -H "Content-Type: application/json" \
-  -d '{
-    "transformId": "resolve-mx",
-    "input": {
-      "entity": {
-        "id": "test-3",
-        "type": "domain",
-        "value": "google.com"
-      }
-    }
-  }'
 ```
 
 ### 3. Async Subdomain Scanner
-**Directory**: `async-subdomain-scanner/`  
-**Porta**: 3002
 
-Esempio legacy con transform asincrona. Usa `multi-tenant-plugin/` per l'approccio moderno.
+**Directory**: `async-subdomain-scanner/`  
+**Port**: 3002
+
+Demonstrates asynchronous transforms with job progress tracking. Legacy example using manual webhook secret configuration.
 
 ```bash
 cd async-subdomain-scanner
 WEBHOOK_SECRET=dev-secret-key npm run dev
 ```
 
-**Test**:
-```bash
-curl -X POST http://localhost:3002/scan-subdomains \
-  -H "Content-Type: application/json" \
-  -d '{
-    "transformId": "scan-subdomains",
-    "input": {
-      "entity": {
-        "id": "test-4",
-        "type": "domain",
-        "value": "example.com"
-      }
-    },
-    "callbackUrl": "https://your-platform.com/api/webhooks/transforms/job-123"
-  }'
-```
+### 4. Multi-Tenant Plugin (Recommended)
 
-### 4. Multi-Tenant Plugin
 **Directory**: `multi-tenant-plugin/`  
-**Porta**: 3003
+**Port**: 3003
 
-Plugin che serve **multiple organizations** con webhook secrets e configurazioni separate.
+Production-ready plugin serving multiple organizations with isolated configurations and automatic webhook secret management.
 
 ```bash
 cd multi-tenant-plugin
@@ -115,108 +87,23 @@ npm install
 npm run dev
 ```
 
-**Come installarlo in Relazio:**
-1. Vai su Dashboard → Plugins → Custom
+**Installation in Relazio**:
+1. Navigate to Dashboard → Plugins → Custom
 2. Click "Add External Plugin"
-3. Incolla: `http://localhost:3003/manifest.json`
-4. ✅ FATTO! Il plugin si registra automaticamente
+3. Enter manifest URL: `http://localhost:3003/manifest.json`
+4. Click "Install"
 
-**Test Manuale**:
-```bash
-# Organization Alpha
-curl -X POST http://localhost:3003/lookup-ip \
-  -H "Content-Type: application/json" \
-  -H "X-Organization-Id: org-alpha" \
-  -d '{
-    "transformId": "lookup-ip",
-    "input": {
-      "entity": {
-        "id": "test-5",
-        "type": "ip",
-        "value": "8.8.8.8"
-      },
-      "config": {
-        "apiKey": "org-alpha-key-123"
-      }
-    }
-  }'
+The plugin automatically:
+- Registers the organization
+- Generates unique webhook secret
+- Manages per-organization configuration
+- No manual setup required
 
-# Organization Beta (diversa config)
-curl -X POST http://localhost:3003/lookup-ip \
-  -H "Content-Type: application/json" \
-  -H "X-Organization-Id: org-beta" \
-  -d '{
-    "transformId": "lookup-ip",
-    "input": {
-      "entity": {
-        "id": "test-6",
-        "type": "ip",
-        "value": "1.1.1.1"
-      },
-      "config": {
-        "apiKey": "org-beta-key-456"
-      }
-    }
-  }'
-```
+## Testing
 
-## Installazione in Relazio
+Each plugin exposes standard endpoints:
 
-1. **Avvia il plugin**:
-   ```bash
-   cd multi-tenant-plugin
-   npm install
-   npm run dev
-   ```
-
-2. **In Relazio**:
-   - Dashboard → Plugins → Tab "Custom"
-   - Click "Add External Plugin"
-   - Incolla URL: `http://localhost:3003/manifest.json`
-   - Click "Install"
-   
-3. **✅ FATTO!** 
-   - Il plugin riceve automaticamente la richiesta `/register`
-   - Genera il webhook secret
-   - Lo restituisce a Relazio
-   - Nessuna configurazione manuale necessaria
-
-### Cosa Succede Dietro le Quinte
-
-```
-Relazio → GET http://localhost:3003/manifest.json
-Relazio → POST http://localhost:3003/register
-          {
-            "organizationId": "org-123",
-            "organizationName": "My Org",
-            "platformUrl": "https://relazio.io"
-          }
-Plugin  → Genera secret: whs_abc123...
-Plugin  → Salva: org-123 → whs_abc123...
-Plugin  → Risponde: {webhookSecret: "whs_abc123..."}
-Relazio → Salva secret nel DB
-✅ Plugin installato e pronto!
-```
-
-## Manifest Generation
-
-Ogni plugin espone automaticamente un endpoint `/manifest.json`:
-
-```bash
-# Email Parser manifest
-curl http://localhost:3000/manifest.json
-
-# DNS Toolkit manifest
-curl http://localhost:3001/manifest.json
-
-# Subdomain Scanner manifest
-curl http://localhost:3002/manifest.json
-```
-
-## Health Check
-
-Ogni plugin espone un endpoint di health check:
-
+### Health Check
 ```bash
 curl http://localhost:3000/health
 ```
@@ -235,17 +122,38 @@ Response:
 }
 ```
 
-## Note
+### Manifest
+```bash
+curl http://localhost:3000/manifest.json
+```
 
-- Gli esempi usano `file:../..` per referenziare l'SDK locale
-- In produzione useresti `@relazio/plugin-sdk` da npm
-- Usa sempre `multiTenant: true` per plugin production-ready
-- Tutti gli endpoint DEVONO usare HTTPS in produzione
-- L'esempio multi-tenant usa in-memory storage (ok per dev, usa Redis/DB in produzione)
+## Installation Flow
 
-## Risorse
+When installing a plugin in Relazio:
 
-- 📖 [Quick Start Guide](../QUICKSTART.md) - Crea il tuo primo plugin
-- 🏢 [Multi-Tenant Guide](../docs/MULTI_TENANT.md) - Guida completa multi-tenancy
-- 📚 [SDK Documentation](../docs/SDK.md) - API reference completa
+```
+1. Relazio → GET http://plugin:3000/manifest.json
+2. Relazio → POST http://plugin:3000/register
+            {
+              "organizationId": "org-123",
+              "organizationName": "My Organization",
+              "platformUrl": "https://relazio.io"
+            }
+3. Plugin  → Generates secret: whs_abc123...
+4. Plugin  → Stores: org-123 → whs_abc123...
+5. Plugin  → Returns: {webhookSecret: "whs_abc123..."}
+6. Relazio → Saves secret in database
+```
 
+## Notes
+
+- Examples use local SDK reference for development
+- Production plugins should install `@relazio/plugin-sdk` from npm
+- Always use `multiTenant: true` for production deployments
+- HTTPS is required for all production endpoints
+- Multi-tenant example uses in-memory storage (use Redis/database in production)
+
+## Resources
+
+- [SDK Documentation](../README.md)
+- [npm Package](https://www.npmjs.com/package/@relazio/plugin-sdk)
