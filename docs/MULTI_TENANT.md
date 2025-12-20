@@ -262,30 +262,6 @@ const secret = await registry.getWebhookSecret('org-test-123');
 
 ---
 
-## 🔄 Migration da Single-Tenant
-
-### Prima (Single-Tenant)
-
-```typescript
-plugin.setWebhookSecret(process.env.WEBHOOK_SECRET);
-
-plugin.start({ port: 3000 });
-```
-
-### Dopo (Multi-Tenant)
-
-```typescript
-// Rimuovi setWebhookSecret()
-
-plugin.start({ 
-  port: 3000,
-  multiTenant: true // ← Aggiungi questa riga
-});
-```
-
-**Zero breaking changes!** Le transform continuano a funzionare identiche.
-
----
 
 ## ⚠️ Best Practices
 

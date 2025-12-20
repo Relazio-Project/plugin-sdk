@@ -26,7 +26,7 @@ User → Dashboard → Plugins → Tab "Custom"
   ↓
 Click "Add External Plugin"
   ↓
-Dialog → Input manifest URL
+Dialog → Input manifest URL (es: https://plugin.example.com/manifest.json)
   ↓
 POST /api/plugins/install
   ├─ ✅ Download manifest from URL
@@ -35,15 +35,27 @@ POST /api/plugins/install
   ├─ ✅ Verify TLS certificates (ManifestValidator.verifyTLS)
   ├─ ✅ Check platform version compatibility (semver)
   ├─ ✅ Check for duplicates (unique constraint)
-  ├─ ✅ Generate webhook secret (crypto.randomBytes(32))
-  └─ ✅ Save in database (OrgExternalPlugin)
+  └─ ✅ POST /register to plugin server
+      {
+        "organizationId": "org-123",
+        "organizationName": "My Org",
+        "platformUrl": "https://relazio.io",
+        "platformVersion": "2.0.0"
+      }
   ↓
-Response with webhook secret (shown ONCE)
+Plugin Server (automatic):
+  ├─ ✅ Generate unique webhook secret (crypto.randomBytes(32))
+  ├─ ✅ Store organizationId → webhookSecret mapping
+  └─ ✅ Return {webhookSecret: "whs_abc123..."}
   ↓
-User copies secret → Saves in plugin server config
+Relazio saves secret in database (OrgExternalPlugin)
+  ↓
+✅ Plugin installato! NO manual configuration needed!
   ↓
 Plugin appears in "Custom" tab
 ```
+
+**🎉 100% Automatico**: L'utente incolla solo l'URL, tutto il resto è gestito automaticamente!
 
 ### Codice Coinvolto ✅
 
@@ -62,6 +74,16 @@ Plugin appears in "Custom" tab
 ✅ **Must pass schema validation**  
 ✅ **All transform endpoints must be HTTPS**  
 ✅ **TLS certificates must be valid**
+
+### Multi-Tenant Registration (Automatic)
+
+Il plugin **DEVE** esporre l'endpoint `/register` che:
+- ✅ Accetta `{organizationId, organizationName, platformUrl}`
+- ✅ Genera automaticamente un `webhookSecret` univoco
+- ✅ Salva la mappatura `organizationId → secret`
+- ✅ Restituisce il secret a Relazio
+
+**L'SDK gestisce tutto questo automaticamente con `multiTenant: true`!**
 
 ---
 
@@ -234,19 +256,23 @@ https://cdn.myplugin.com/manifest.json
 - Loading state
 - API call to `/api/plugins/install`
 - Validation happens server-side
+- **Automatic registration** con il plugin server
 
 **5. Installation Success**
-- Plugin info displayed
-- **Webhook secret shown** (copy to clipboard)
-- Warning: "Save this secret, won't be shown again"
+- ✅ Plugin installato automaticamente
+- ✅ Webhook secret generato e salvato in background
+- ✅ **NO manual configuration needed!**
+- Success message displayed
 
 **6. Plugin Listed**
 - Card shows:
   - Name, version, author
   - Category badge
   - Enabled/Disabled status
-  - Configure button (if requiresConfig)
+  - Configure button (if requiresConfig - per API keys utente)
   - Uninstall button
+
+**🎯 L'utente NON vede e NON gestisce il webhook secret!**
 
 ### Transform Execution UI Flow
 

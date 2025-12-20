@@ -75,11 +75,11 @@ curl -X POST http://localhost:3001/resolve-mx \
   }'
 ```
 
-### 3. Subdomain Scanner (Async)
+### 3. Async Subdomain Scanner
 **Directory**: `async-subdomain-scanner/`  
 **Porta**: 3002
 
-Plugin con transform asincrona che simula una scansione lunga con progress tracking.
+Esempio legacy con transform asincrona. Usa `multi-tenant-plugin/` per l'approccio moderno.
 
 ```bash
 cd async-subdomain-scanner
@@ -103,7 +103,7 @@ curl -X POST http://localhost:3002/scan-subdomains \
   }'
 ```
 
-### 4. Multi-Tenant Plugin ⭐ NEW
+### 4. Multi-Tenant Plugin
 **Directory**: `multi-tenant-plugin/`  
 **Porta**: 3003
 
@@ -115,7 +115,13 @@ npm install
 npm run dev
 ```
 
-**Test**:
+**Come installarlo in Relazio:**
+1. Vai su Dashboard → Plugins → Custom
+2. Click "Add External Plugin"
+3. Incolla: `http://localhost:3003/manifest.json`
+4. ✅ FATTO! Il plugin si registra automaticamente
+
+**Test Manuale**:
 ```bash
 # Organization Alpha
 curl -X POST http://localhost:3003/lookup-ip \
@@ -152,6 +158,44 @@ curl -X POST http://localhost:3003/lookup-ip \
       }
     }
   }'
+```
+
+## Installazione in Relazio
+
+1. **Avvia il plugin**:
+   ```bash
+   cd multi-tenant-plugin
+   npm install
+   npm run dev
+   ```
+
+2. **In Relazio**:
+   - Dashboard → Plugins → Tab "Custom"
+   - Click "Add External Plugin"
+   - Incolla URL: `http://localhost:3003/manifest.json`
+   - Click "Install"
+   
+3. **✅ FATTO!** 
+   - Il plugin riceve automaticamente la richiesta `/register`
+   - Genera il webhook secret
+   - Lo restituisce a Relazio
+   - Nessuna configurazione manuale necessaria
+
+### Cosa Succede Dietro le Quinte
+
+```
+Relazio → GET http://localhost:3003/manifest.json
+Relazio → POST http://localhost:3003/register
+          {
+            "organizationId": "org-123",
+            "organizationName": "My Org",
+            "platformUrl": "https://relazio.io"
+          }
+Plugin  → Genera secret: whs_abc123...
+Plugin  → Salva: org-123 → whs_abc123...
+Plugin  → Risponde: {webhookSecret: "whs_abc123..."}
+Relazio → Salva secret nel DB
+✅ Plugin installato e pronto!
 ```
 
 ## Manifest Generation
@@ -195,6 +239,13 @@ Response:
 
 - Gli esempi usano `file:../..` per referenziare l'SDK locale
 - In produzione useresti `@relazio/plugin-sdk` da npm
-- Il webhook secret per async transforms è richiesto
+- Usa sempre `multiTenant: true` per plugin production-ready
 - Tutti gli endpoint DEVONO usare HTTPS in produzione
+- L'esempio multi-tenant usa in-memory storage (ok per dev, usa Redis/DB in produzione)
+
+## Risorse
+
+- 📖 [Quick Start Guide](../QUICKSTART.md) - Crea il tuo primo plugin
+- 🏢 [Multi-Tenant Guide](../docs/MULTI_TENANT.md) - Guida completa multi-tenancy
+- 📚 [SDK Documentation](../docs/SDK.md) - API reference completa
 

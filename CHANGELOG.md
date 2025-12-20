@@ -15,11 +15,25 @@ e questo progetto aderisce al [Semantic Versioning](https://semver.org/spec/v2.0
 - HMAC signature utilities per webhook security
 - Server Express integration con routing automatico
 - Job progress tracking per async transforms
+- **Sistema Multi-Tenant** (approccio standard)
+  - `InstallationRegistry` per gestione organizzazioni
+  - Endpoint `/register` automatico
+  - Endpoint `/unregister` automatico
+  - Endpoint `/stats` per statistiche
+  - Storage interface (`InstallationStorage`) estendibile
+  - `MemoryStorage` per development/testing
+  - Supporto Redis/PostgreSQL/Database custom
+  - Gestione automatica webhook secrets per organization
 - Esempi funzionanti:
   - Email Parser (sync)
   - DNS Toolkit (multi-transform sync)
-  - Subdomain Scanner (async)
-- Documentazione completa in `docs/`
+  - Multi-Tenant Plugin (async + multi-org)
+- Documentazione completa in `docs/`:
+  - `MULTI_TENANT.md` - Guida completa multi-tenancy
+  - `CONFIGURATION.md` - Configurazione plugin
+  - `QUICKSTART.md` - Quick start
+  - `SDK.md` - API reference
+  - `EXTERNAL_PLUGINS_FLOW.md` - Flow dettagliati
 - Health check endpoint automatico
 - Manifest endpoint automatico
 - TypeScript types completi

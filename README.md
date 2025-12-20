@@ -55,10 +55,10 @@ Tutta la documentazione è disponibile nella cartella `docs/`:
 
 ### Per Sviluppatori
 
-- **[QUICKSTART.md](QUICKSTART.md)** - ⭐ Quick start per creare plugin
+- **[QUICKSTART.md](QUICKSTART.md)** - ⭐ Quick start per creare plugin (3 righe di codice!)
 - **[SDK.md](docs/SDK.md)** - ⭐ SDK API reference completa (TypeScript/Python)
-- **[CONFIGURATION.md](docs/CONFIGURATION.md)** - 🆕 Guida configurazione (string, number, boolean, select)
-- **[MULTI_TENANT.md](docs/MULTI_TENANT.md)** - 🆕 Guida multi-tenancy
+- **[MULTI_TENANT.md](docs/MULTI_TENANT.md)** - Guida multi-tenancy (architettura standard)
+- **[CONFIGURATION.md](docs/CONFIGURATION.md)** - Guida configurazione (string, number, boolean, select)
 - **[EXTERNAL_PLUGINS.md](docs/EXTERNAL_PLUGINS.md)** - Architettura sistema plugin esterni
 - **[EXTERNAL_PLUGINS_FLOW.md](docs/EXTERNAL_PLUGINS_FLOW.md)** - Flussi dettagliati step-by-step
 - **[IMPLEMENTATION_EXTERNAL_PLUGINS.md](docs/IMPLEMENTATION_EXTERNAL_PLUGINS.md)** - Piano implementazione (reference)
@@ -101,6 +101,9 @@ plugin.transform({
   outputTypes: ['ip'],
   
   handler: async (input, config) => {
+    // input.organizationId contiene l'ID dell'organizzazione
+    console.log(`Processing for org: ${input.organizationId}`);
+    
     return {
       entities: [
         {
@@ -114,16 +117,25 @@ plugin.transform({
   }
 });
 
-// Avvia server
-plugin.start({ port: 3000 });
+// Avvia server multi-tenant
+plugin.start({ 
+  port: 3000,
+  multiTenant: true  // ← Gestisce automaticamente tutto!
+});
 ```
+
+**🎉 Il plugin gestisce automaticamente:**
+- ✅ Endpoint `/register` per nuove organizzazioni
+- ✅ Generazione automatica webhook secrets
+- ✅ Gestione separata per ogni organization
+- ✅ Zero configurazione manuale necessaria!
 
 ### Esempi Completi
 
 Vedi la cartella `examples/` per esempi funzionanti:
 - **Email Parser** - Transform sincrona semplice
 - **DNS Toolkit** - Multiple transforms sincrone
-- **Subdomain Scanner** - Transform asincrona con progress tracking
+- **Multi-Tenant Plugin** - Transform asincrona con multi-organization
 
 ---
 

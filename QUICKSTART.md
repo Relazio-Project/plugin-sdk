@@ -6,6 +6,21 @@
 npm install @relazio/plugin-sdk
 ```
 
+## 🎯 Flow di Installazione (Automatico)
+
+**Quando un utente installa il tuo plugin in Relazio:**
+
+1. ✅ Utente incolla l'URL del manifest (es: `https://yourplugin.com/manifest.json`)
+2. ✅ Relazio scarica e valida il manifest
+3. ✅ Relazio chiama automaticamente `POST /register` sul tuo plugin
+4. ✅ Il tuo plugin genera un webhook secret univoco per quella organization
+5. ✅ Relazio salva il secret (l'utente NON lo vede mai)
+6. ✅ Plugin installato! Pronto all'uso!
+
+**💡 L'utente NON deve configurare nulla! Tutto automatico!**
+
+---
+
 ## Creare il Primo Plugin
 
 ### 1. Setup Base
@@ -70,9 +85,17 @@ plugin.transform({
 ```typescript
 plugin.start({
   port: 3000,
-  host: '0.0.0.0'
+  host: '0.0.0.0',
+  multiTenant: true  // ← Abilita gestione automatica multi-organization
 });
 ```
+
+**Ottieni automaticamente:**
+- ✅ Endpoint `/register` - Registrazione automatica organizzazioni
+- ✅ Endpoint `/unregister` - Rimozione organizzazioni
+- ✅ Endpoint `/stats` - Statistiche installazioni
+- ✅ Gestione automatica webhook secrets per ogni organization
+- ✅ Zero configurazione manuale
 
 ### 4. Test
 
@@ -83,9 +106,22 @@ curl http://localhost:3000/health
 # Manifest
 curl http://localhost:3000/manifest.json
 
-# Esegui transform
+# Simula registrazione di un'organizzazione (come fa Relazio)
+curl -X POST http://localhost:3000/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "organizationId": "org-test-123",
+    "organizationName": "Test Organization",
+    "platformUrl": "https://relazio.io",
+    "platformVersion": "2.0.0"
+  }'
+
+# Output: {"webhookSecret":"whs_abc123...","pluginId":"my-first-plugin",...}
+
+# Esegui transform (con header organization)
 curl -X POST http://localhost:3000/extract-info \
   -H "Content-Type: application/json" \
+  -H "X-Organization-Id: org-test-123" \
   -d '{
     "transformId": "extract-info",
     "input": {
@@ -96,6 +132,9 @@ curl -X POST http://localhost:3000/extract-info \
       }
     }
   }'
+
+# Statistiche
+curl http://localhost:3000/stats
 ```
 
 ## Transform Asincrone
@@ -103,9 +142,6 @@ curl -X POST http://localhost:3000/extract-info \
 Per operazioni lunghe (minuti/ore):
 
 ```typescript
-// Imposta webhook secret
-plugin.setWebhookSecret(process.env.WEBHOOK_SECRET);
-
 plugin.asyncTransform({
   id: 'long-scan',
   name: 'Long Scan',
@@ -114,6 +150,9 @@ plugin.asyncTransform({
   outputTypes: ['domain', 'note'],
   
   handler: async (input, config, job) => {
+    // input.organizationId identifica l'organization
+    console.log(`Scanning for org: ${input.organizationId}`);
+    
     // Aggiorna progresso
     await job.updateProgress(0, 'Starting scan...');
     
@@ -133,6 +172,8 @@ plugin.asyncTransform({
   }
 });
 ```
+
+**Il webhook secret corretto viene automaticamente utilizzato per ogni organization.**
 
 ## Configurazione Utente
 
@@ -288,9 +329,24 @@ CMD ["node", "dist/index.js"]
 ### Requisiti Produzione
 
 ✅ **HTTPS obbligatorio** - La piattaforma richiede HTTPS  
-✅ **Webhook secret** - Per async transforms  
-✅ **Certificato TLS valido**  
+✅ **Certificato TLS valido** - Certificato SSL valido  
+✅ **Storage persistente** - Redis/PostgreSQL per produzione (non in-memory)  
 ✅ **Rate limiting** - Gestito dalla piattaforma
+
+**Storage per Produzione:**
+```typescript
+import { InstallationRegistry } from '@relazio/plugin-sdk';
+
+// Usa Redis o Database in produzione
+const registry = new InstallationRegistry(
+  'my-plugin',
+  '1.0.0',
+  new RedisStorage()  // Vedi docs/MULTI_TENANT.md
+);
+
+plugin.enableMultiTenant(registry);
+plugin.start({ port: 3000 });
+```
 
 ## Risorse
 
