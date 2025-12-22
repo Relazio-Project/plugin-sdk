@@ -1,9 +1,15 @@
-import { RelazioPlugin } from '../src';
+import { RelazioPlugin, createEntity, ResultBuilder } from '../../src';
 import dns from 'dns/promises';
 
 /**
  * Esempio 2: DNS Toolkit
  * Plugin con multiple transforms sincrone per analisi DNS
+ * 
+ * Questo esempio mostra:
+ * - createEntity() dinamico per qualsiasi tipo
+ * - Gestione di multiple entità dello stesso tipo
+ * - ResultBuilder per risultati complessi
+ * - Approccio scalabile senza dipendenze da tipi specifici
  */
 
 const plugin = new RelazioPlugin({
@@ -30,25 +36,23 @@ plugin.transform({
     try {
       const ips = await dns.resolve4(domain);
       
-      return {
-        success: true,
-        entities: ips.map((ip) => ({
-          type: 'ip' as const,
-          value: ip,
-          label: ip,
+      // Crea le entità IP usando createEntity()
+      const ipEntities = ips.map(ip => 
+        createEntity('ip', ip, {
           metadata: {
             source: 'dns-toolkit',
             recordType: 'A',
           },
-        })),
-        edges: ips.map((ip) => ({
-          sourceId: input.entity.id,
-          targetId: 'auto',
-          label: 'resolves to',
+        })
+      );
+      
+      // Usa ResultBuilder per aggiungere tutte le entità con lo stesso edge
+      return new ResultBuilder(input)
+        .addEntities(ipEntities, 'resolves to', {
           relationship: 'resolves_to',
-        })),
-        message: `Found ${ips.length} A record(s)`,
-      };
+        })
+        .setMessage(`Found ${ips.length} A record(s)`)
+        .build();
     } catch (error) {
       throw new Error(`DNS resolution failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -69,28 +73,24 @@ plugin.transform({
     try {
       const mxRecords = await dns.resolveMx(domain);
       
-      const entities = mxRecords.map((mx) => ({
-        type: 'domain' as const,
-        value: mx.exchange,
-        label: `${mx.exchange} (priority: ${mx.priority})`,
-        metadata: {
-          source: 'dns-toolkit',
-          recordType: 'MX',
-          priority: mx.priority,
-        },
-      }));
+      // Crea le entità domain con label e metadata personalizzati
+      const mailServers = mxRecords.map((mx) =>
+        createEntity('domain', mx.exchange, {
+          label: `${mx.exchange} (priority: ${mx.priority})`,
+          metadata: {
+            source: 'dns-toolkit',
+            recordType: 'MX',
+            priority: mx.priority,
+          },
+        })
+      );
       
-      return {
-        success: true,
-        entities,
-        edges: mxRecords.map((mx) => ({
-          sourceId: input.entity.id,
-          targetId: 'auto',
-          label: 'mail server',
+      return new ResultBuilder(input)
+        .addEntities(mailServers, 'mail server', {
           relationship: 'uses_mailserver',
-        })),
-        message: `Found ${mxRecords.length} MX record(s)`,
-      };
+        })
+        .setMessage(`Found ${mxRecords.length} MX record(s)`)
+        .build();
     } catch (error) {
       throw new Error(`MX lookup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
@@ -111,25 +111,22 @@ plugin.transform({
     try {
       const nameservers = await dns.resolveNs(domain);
       
-      return {
-        success: true,
-        entities: nameservers.map((ns) => ({
-          type: 'domain' as const,
-          value: ns,
-          label: ns,
+      // Crea le entità nameserver
+      const nsEntities = nameservers.map((ns) =>
+        createEntity('domain', ns, {
           metadata: {
             source: 'dns-toolkit',
             recordType: 'NS',
           },
-        })),
-        edges: nameservers.map((ns) => ({
-          sourceId: input.entity.id,
-          targetId: 'auto',
-          label: 'nameserver',
+        })
+      );
+      
+      return new ResultBuilder(input)
+        .addEntities(nsEntities, 'nameserver', {
           relationship: 'uses_nameserver',
-        })),
-        message: `Found ${nameservers.length} nameserver(s)`,
-      };
+        })
+        .setMessage(`Found ${nameservers.length} nameserver(s)`)
+        .build();
     } catch (error) {
       throw new Error(`NS lookup failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }

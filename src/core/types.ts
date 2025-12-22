@@ -3,17 +3,27 @@
  */
 
 export type EntityType =
-  | 'domain'
-  | 'ip'
-  | 'email'
-  | 'phone'
-  | 'person'
-  | 'organization'
-  | 'location'
-  | 'note'
-  | 'url'
-  | 'hash'
-  | 'custom';
+  | 'email'           // Email address
+  | 'domain'          // Domain name
+  | 'ip'              // IP address
+  | 'person'          // Person name
+  | 'username'        // Username/handle
+  | 'phone'           // Phone number
+  | 'organization'    // Organization/company
+  | 'hash'            // Hash/checksum
+  | 'credential'      // Credential pair
+  | 'social'          // Social media profile
+  | 'document'        // Document
+  | 'note'            // Text note
+  | 'image'           // Image
+  | 'video'           // Video
+  | 'location'        // Geographic location
+  | 'wallet'          // Crypto wallet
+  | 'transaction'     // Transaction
+  | 'exchange'        // Exchange
+  | 'url'             // URL
+  | 'maps'            // Map view
+  | 'custom';         // Custom entity
 
 export type PluginCategory =
   | 'network'
@@ -33,31 +43,33 @@ export type JobStatus =
   | 'cancelled';
 
 /**
- * Entità OSINT
+ * Entità OSINT (formato esterno - con ID obbligatorio)
  */
 export interface OSINTEntity {
-  type: EntityType;
-  value: string;
-  label?: string;
-  metadata?: Record<string, any>;
+  id: string;          // OBBLIGATORIO - ID univoco generato
+  type: EntityType;    // OBBLIGATORIO - Tipo entità
+  value: string;       // OBBLIGATORIO - Valore breve dell'entità
+  label?: string;      // OPZIONALE - Testo visualizzato (default: value)
+  metadata?: Record<string, any>; // OPZIONALE - Metadata addizionali
 }
 
 /**
- * Arco/connessione tra entità
+ * Arco/connessione tra entità (formato esterno)
  */
 export interface OSINTEdge {
-  sourceId: string;
-  targetId: string | 'auto'; // 'auto' per generazione automatica ID
-  label: string;
-  relationship: string;
-  metadata?: Record<string, any>;
+  id: string;           // OBBLIGATORIO - ID univoco edge
+  sourceId: string;     // OBBLIGATORIO - ID entità sorgente
+  targetId: string;     // OBBLIGATORIO - ID entità target
+  label: string;        // OBBLIGATORIO - Label visibile
+  relationship?: string; // OPZIONALE - Tipo relazione (default: label)
+  metadata?: Record<string, any>; // OPZIONALE - Metadata addizionali
 }
 
 /**
  * Input per una transform
  */
 export interface TransformInput {
-  entity: OSINTEntity & { id: string };
+  entity: OSINTEntity; // Ora include già l'ID obbligatorio
   config?: Record<string, any>;
   organizationId?: string; // ID organization per multi-tenancy
 }

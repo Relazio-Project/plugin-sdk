@@ -1,8 +1,14 @@
-import { RelazioPlugin } from '../src';
+import { RelazioPlugin, createEntity, ResultBuilder } from '../../src';
 
 /**
  * Esempio 1: Plugin Email Parser
  * Transform sincrona che estrae il dominio da un indirizzo email
+ * 
+ * Questo esempio mostra l'approccio SCALABILE dell'SDK:
+ * - createEntity() dinamico - funziona con QUALSIASI tipo
+ * - Nessuna dipendenza da helper specifici
+ * - ID deterministici automatici
+ * - ResultBuilder per costruire risultati
  */
 
 const plugin = new RelazioPlugin({
@@ -33,29 +39,22 @@ plugin.transform({
     
     const domain = email.split('@')[1];
     
-    return {
-      success: true,
-      entities: [
-        {
-          type: 'domain',
-          value: domain,
-          label: domain,
-          metadata: {
-            source: 'email-parser',
-            extractedFrom: email,
-          },
-        },
-      ],
-      edges: [
-        {
-          sourceId: input.entity.id,
-          targetId: 'auto',
-          label: 'domain of',
-          relationship: 'belongs_to',
-        },
-      ],
-      message: `Extracted domain: ${domain}`,
-    };
+    // Crea l'entità usando createEntity() - scalabile per qualsiasi tipo!
+    const domainEntity = createEntity('domain', domain, {
+      metadata: {
+        source: 'email-parser',
+        extractedFrom: email,
+      },
+    });
+    
+    // Usa ResultBuilder per costruire il risultato completo
+    // L'edge viene creato automaticamente
+    return new ResultBuilder(input)
+      .addEntity(domainEntity, 'domain of', {
+        relationship: 'belongs_to',
+      })
+      .setMessage(`Extracted domain: ${domain}`)
+      .build();
   },
 });
 

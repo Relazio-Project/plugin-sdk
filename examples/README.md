@@ -1,159 +1,137 @@
-# Plugin Examples
+# Examples
 
-This directory contains working examples of Relazio plugins demonstrating various use cases and SDK features.
+This directory contains complete example plugins demonstrating SDK functionality.
 
-## Available Examples
+## Primary Examples
 
-### 1. Email Parser (Sync Transform)
+### Synchronous Transform - simple-sync-example
 
-**Directory**: `email-parser/`  
-**Port**: 3000
+The best starting point for learning the SDK.
 
-Simple plugin with a synchronous transform that extracts domain from email addresses.
+**Location**: `simple-sync-example/`
+
+**Features**:
+- Synchronous transform (< 30 seconds)
+- Creates multiple entity types (IP, Location, Organization, Note)
+- Demonstrates `createEntity()` scalable approach
+- Uses `ResultBuilder` with automatic edge creation
+- Includes Markdown-formatted notes
 
 ```bash
-cd email-parser
+cd simple-sync-example
 npm install
-npm run dev
+npm start
 ```
 
-**Test**:
-```bash
-curl -X POST http://localhost:3000/extract-domain \
-  -H "Content-Type: application/json" \
-  -d '{
-    "transformId": "extract-domain",
-    "input": {
-      "entity": {
-        "id": "test-1",
-        "type": "email",
-        "value": "user@example.com"
-      }
-    }
-  }'
-```
+### Asynchronous Transform - async-subdomain-scanner
 
-### 2. DNS Toolkit (Multi-Transform)
+Complete example of async transform with progress tracking.
 
-**Directory**: `dns-toolkit/`  
-**Port**: 3001
+**Location**: `async-subdomain-scanner/`
 
-Plugin with multiple synchronous transforms for DNS analysis (A, MX, NS records).
-
-```bash
-cd dns-toolkit
-npm install
-npm run dev
-```
-
-**Test**:
-```bash
-curl -X POST http://localhost:3001/resolve-a \
-  -H "Content-Type: application/json" \
-  -d '{
-    "transformId": "resolve-a",
-    "input": {
-      "entity": {
-        "id": "test-2",
-        "type": "domain",
-        "value": "google.com"
-      }
-    }
-  }'
-```
-
-### 3. Async Subdomain Scanner
-
-**Directory**: `async-subdomain-scanner/`  
-**Port**: 3002
-
-Demonstrates asynchronous transforms with job progress tracking. Legacy example using manual webhook secret configuration.
+**Features**:
+- Asynchronous transform (long-running operations)
+- Real-time progress tracking
+- Webhook callbacks
+- Multiple result handling
+- Scalable entity creation
 
 ```bash
 cd async-subdomain-scanner
-WEBHOOK_SECRET=dev-secret-key npm run dev
-```
-
-### 4. Multi-Tenant Plugin (Recommended)
-
-**Directory**: `multi-tenant-plugin/`  
-**Port**: 3003
-
-Production-ready plugin serving multiple organizations with isolated configurations and automatic webhook secret management.
-
-```bash
-cd multi-tenant-plugin
 npm install
-npm run dev
+npm start
 ```
 
-**Installation in Relazio**:
-1. Navigate to Dashboard → Plugins → Custom
-2. Click "Add External Plugin"
-3. Enter manifest URL: `http://localhost:3003/manifest.json`
-4. Click "Install"
+## Additional Examples
 
-The plugin automatically:
-- Registers the organization
-- Generates unique webhook secret
-- Manages per-organization configuration
-- No manual setup required
+### 3. email-parser
 
-## Testing
+Basic email domain extraction.
 
-Each plugin exposes standard endpoints:
-
-### Health Check
 ```bash
-curl http://localhost:3000/health
+cd email-parser && npm install && npm start
 ```
 
-Response:
-```json
-{
-  "status": "ok",
-  "plugin": "email-parser",
-  "version": "1.0.0",
-  "uptime": 123.45,
-  "transforms": {
-    "sync": 1,
-    "async": 0
-  }
-}
-```
+### 4. dns-toolkit
 
-### Manifest
+Multiple DNS-related transforms (A, MX, NS records).
+
 ```bash
-curl http://localhost:3000/manifest.json
+cd dns-toolkit && npm install && npm start
 ```
 
-## Installation Flow
+### 5. ip-lookup-complete
 
-When installing a plugin in Relazio:
+Comprehensive example with all SDK features.
 
-```
-1. Relazio → GET http://plugin:3000/manifest.json
-2. Relazio → POST http://plugin:3000/register
-            {
-              "organizationId": "org-123",
-              "organizationName": "My Organization",
-              "platformUrl": "https://relazio.io"
-            }
-3. Plugin  → Generates secret: whs_abc123...
-4. Plugin  → Stores: org-123 → whs_abc123...
-5. Plugin  → Returns: {webhookSecret: "whs_abc123..."}
-6. Relazio → Saves secret in database
+```bash
+cd ip-lookup-complete && npm install && npm start
 ```
 
-## Notes
+### 6. multi-tenant-plugin
 
-- Examples use local SDK reference for development
-- Production plugins should install `@relazio/plugin-sdk` from npm
-- Always use `multiTenant: true` for production deployments
-- HTTPS is required for all production endpoints
-- Multi-tenant example uses in-memory storage (use Redis/database in production)
+Multi-organization support with registration endpoints.
 
-## Resources
+```bash
+cd multi-tenant-plugin && npm install && npm start
+```
 
-- [SDK Documentation](../README.md)
-- [npm Package](https://www.npmjs.com/package/@relazio/plugin-sdk)
+## Example Selection Guide
+
+| Use Case | Example |
+|----------|---------|
+| **Getting started (sync)** | **simple-sync-example** |
+| **Long-running operations (async)** | **async-subdomain-scanner** |
+| DNS analysis patterns | dns-toolkit |
+| Basic email parsing | email-parser |
+| Advanced SDK features | ip-lookup-complete |
+| Multi-organization support | multi-tenant-plugin |
+
+## Common Patterns
+
+All examples use the scalable `createEntity()` approach:
+
+```typescript
+// Works with any type - even future types
+createEntity('ip', '8.8.8.8')
+createEntity('domain', 'example.com')
+createEntity('custom-type', 'value')
+```
+
+And `ResultBuilder` for automatic edge creation:
+
+```typescript
+return new ResultBuilder(input)
+  .addEntity(entity, 'edge label')
+  .setMessage('Success')
+  .build();
+```
+
+## Development Setup
+
+```bash
+# In SDK root
+npm run build
+
+# In any example
+cd examples/example-name
+npm install
+npm start
+```
+
+## Creating Custom Plugins
+
+Use the examples as templates:
+
+1. Copy an example directory
+2. Update `package.json`
+3. Implement your transform logic
+4. Test thoroughly
+5. Deploy
+
+## Additional Resources
+
+- [Quick Start Guide](../docs/quick-start.md)
+- [Builders Guide](../docs/builders-guide.md)
+- [Response Format](../docs/response-format.md)
+- [Examples Documentation](../docs/examples.md)
