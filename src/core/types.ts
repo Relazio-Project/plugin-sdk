@@ -2,35 +2,100 @@
  * Tipi core per Relazio Plugin SDK
  */
 
+// Kept in sync with the platform's entity types
+// (relazio/src/features/osint/entity-types.ts). Addon transforms may emit any of
+// these; unknown strings are coerced to 'custom' by the platform.
 export type EntityType =
-  | 'email'           // Email address
-  | 'domain'          // Domain name
-  | 'ip'              // IP address
-  | 'person'          // Person name
-  | 'username'        // Username/handle
-  | 'phone'           // Phone number
-  | 'organization'    // Organization/company
-  | 'hash'            // Hash/checksum
-  | 'credential'      // Credential pair
-  | 'social'          // Social media profile
-  | 'document'        // Document
-  | 'note'            // Text note
-  | 'image'           // Image
-  | 'video'           // Video
-  | 'location'        // Geographic location
-  | 'wallet'          // Crypto wallet
-  | 'transaction'     // Transaction
-  | 'exchange'        // Exchange
-  | 'url'             // URL
-  | 'maps'            // Map view
-  | 'custom';         // Custom entity
+  | 'email'
+  | 'domain'
+  | 'ip'
+  | 'person'
+  | 'username'
+  | 'phone'
+  | 'organization'
+  | 'hash'
+  | 'credential'
+  | 'user_id'
+  | 'device_id'
+  | 'mac_address'
+  | 'asn'
+  | 'hostname'
+  | 'subdomain'
+  | 'ssl_certificate'
+  | 'whois_record'
+  | 'social'
+  | 'instagram_user'
+  | 'instagram_post'
+  | 'telegram_user'
+  | 'telegram_channel'
+  | 'telegram_group'
+  | 'telegram_bot'
+  | 'facebook_user'
+  | 'facebook_group'
+  | 'twitter_user'
+  | 'twitter_post'
+  | 'linkedin_profile'
+  | 'github_user'
+  | 'github_repo'
+  | 'gitlab_user'
+  | 'youtube_channel'
+  | 'youtube_video'
+  | 'tiktok_user'
+  | 'tiktok_video'
+  | 'reddit_user'
+  | 'reddit_post'
+  | 'discord_user'
+  | 'discord_server'
+  | 'whatsapp_number'
+  | 'signal_number'
+  | 'slack_workspace'
+  | 'slack_channel'
+  | 'document'
+  | 'pdf'
+  | 'docx'
+  | 'xlsx'
+  | 'txt'
+  | 'csv'
+  | 'json'
+  | 'note'
+  | 'media_url'
+  | 'location'
+  | 'maps'
+  | 'address'
+  | 'url'
+  | 'dns_record'
+  | 'http_request'
+  | 'http_response'
+  | 'wallet'
+  | 'wallet_eth'
+  | 'wallet_btc'
+  | 'wallet_ltc'
+  | 'wallet_tron'
+  | 'wallet_solana'
+  | 'transaction'
+  | 'exchange'
+  | 'bank_account'
+  | 'iban'
+  | 'credit_card'
+  | 'paypal_account'
+  | 'stripe_customer'
+  | 'ai_insight'
+  | 'breach'
+  | 'leak'
+  | 'custom';
 
 export type PluginCategory =
   | 'network'
   | 'identity'
+  | 'media'
+  | 'location'
+  | 'blockchain'
+  | 'ai'
+  | 'osint'
   | 'social'
-  | 'financial'
-  | 'security'
+  | 'documents'
+  | 'financial' // legacy alias
+  | 'security' // legacy alias
   | 'other';
 
 export type JobStatus =
