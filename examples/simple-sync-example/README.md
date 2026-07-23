@@ -1,5 +1,9 @@
 # Synchronous Transform Example - Domain Info Lookup
 
+> Local transform-authoring example only. It runs without multi-tenant request
+> authentication and must not be exposed publicly. Use the repository root
+> README or `relazio-plugin-example` for a deployable addon.
+
 A clear, well-documented example of a synchronous transform demonstrating SDK best practices.
 
 ## Overview

@@ -122,5 +122,56 @@ describe('RelazioPlugin', () => {
     expect(manifest.plugin.transforms).toHaveLength(1);
     expect(manifest.plugin.transforms[0].id).toBe('transform1');
   });
-});
 
+  it('should mark async transforms in the manifest', () => {
+    const plugin = new RelazioPlugin({
+      id: 'async-test',
+      name: 'Async Test',
+      version: '1.0.0',
+      author: 'Test',
+      description: 'Test',
+      category: 'network',
+    });
+    plugin.setWebhookSecret('test-secret');
+    plugin.asyncTransform({
+      id: 'async-transform',
+      name: 'Async Transform',
+      description: 'Test',
+      inputType: 'domain',
+      outputTypes: ['ip'],
+      premium: true,
+      credits: 3,
+      handler: async () => ({ entities: [], edges: [] }),
+    });
+
+    const manifest = plugin.generateManifest({
+      endpoint: 'https://api.example.com',
+    });
+
+    expect(manifest.plugin.capabilities.supportsAsync).toBe(true);
+    expect(manifest.plugin.transforms[0]).toMatchObject({
+      async: true,
+      premium: true,
+      credits: 3,
+    });
+  });
+
+  it('requires explicit storage for multi-tenant startup', async () => {
+    const plugin = new RelazioPlugin({
+      id: 'storage-test',
+      name: 'Storage Test',
+      version: '1.0.0',
+      author: 'Test',
+      description: 'Test',
+      category: 'network'
+    });
+
+    await expect(
+      plugin.start({
+        port: 0,
+        multiTenant: true,
+        installationToken: 'i'.repeat(32)
+      })
+    ).rejects.toThrow(/persistent installation storage/);
+  });
+});

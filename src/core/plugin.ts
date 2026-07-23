@@ -10,9 +10,14 @@ import type {
   TransformResult,
 } from './types';
 import { ManifestGenerator } from './manifest';
-import { JobQueue, type WebhookSecretProvider, InMemorySecretProvider } from '../jobs/progress';
+import { JobQueue, type WebhookSecretProvider } from '../jobs/progress';
 import { InstallationRegistry } from '../registry/installation';
 import type { Server } from '../server/express';
+import crypto from 'node:crypto';
+import { validateTransformResult } from '../utils/builders';
+
+const MAX_RESULT_ENTITIES = 1000;
+const MAX_RESULT_EDGES = 2000;
 
 /**
  * Classe principale per creare plugin Relazio
@@ -52,7 +57,7 @@ export class RelazioPlugin {
     }
 
     this.transforms.set(config.id, config);
-    this.manifestGenerator.addTransform(config);
+    this.manifestGenerator.addTransform(config, false);
   }
 
   /**
@@ -64,7 +69,7 @@ export class RelazioPlugin {
     }
 
     this.asyncTransforms.set(config.id, config);
-    this.manifestGenerator.addTransform(config);
+    this.manifestGenerator.addTransform(config, true);
 
     // Inizializza job queue se non esiste
     if (!this.jobQueue) {
@@ -148,7 +153,8 @@ export class RelazioPlugin {
       throw new Error(`Transform ${transformId} not found`);
     }
 
-    return await transform.handler(input, input.config || {});
+    const result = await transform.handler(input, input.config || {});
+    return this.prepareTransformResult(result, input.entity.id);
   }
 
   /**
@@ -158,7 +164,7 @@ export class RelazioPlugin {
     transformId: string,
     input: TransformInput,
     callbackUrl: string,
-    organizationId?: string
+    workspaceId?: string
   ): Promise<{ jobId: string; estimatedTime?: number }> {
     const transform = this.asyncTransforms.get(transformId);
     
@@ -171,12 +177,16 @@ export class RelazioPlugin {
     }
 
     // Genera job ID
-    const jobId = `${this.config.id}-${transformId}-${Date.now()}`;
+    const jobId = `${this.config.id}-${transformId}-${crypto.randomUUID()}`;
     
     // Crea job con supporto multi-tenant
     let job;
-    if (this.multiTenant && organizationId) {
-      job = await this.jobQueue.createJobForOrganization(jobId, callbackUrl, organizationId);
+    if (this.multiTenant && workspaceId) {
+      job = await this.jobQueue.createJobForWorkspace(
+        jobId,
+        callbackUrl,
+        workspaceId
+      );
     } else {
       job = this.jobQueue.createJob(jobId, callbackUrl);
     }
@@ -185,10 +195,14 @@ export class RelazioPlugin {
     setImmediate(async () => {
       try {
         const result = await transform.handler(input, input.config || {}, job);
-        await job.complete(result);
+        await job.complete(this.prepareTransformResult(result, input.entity.id));
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        await job.fail(errorMessage);
+        try {
+          await job.fail(errorMessage);
+        } catch (deliveryError) {
+          console.error('Failed to deliver terminal job webhook:', deliveryError);
+        }
       } finally {
         this.jobQueue?.removeJob(jobId);
       }
@@ -201,11 +215,23 @@ export class RelazioPlugin {
    * Avvia il server plugin
    */
   async start(options: StartOptions): Promise<void> {
+    if (options.multiTenant && !options.installationToken) {
+      throw new Error(
+        'installationToken is required when multiTenant mode is enabled'
+      );
+    }
+
     // Se multiTenant option è specificata, abilita multi-tenancy automaticamente
     if (options.multiTenant && !this.multiTenant) {
+      if (!options.allowInMemoryStorage) {
+        throw new Error(
+          'Multi-tenant mode requires persistent installation storage. ' +
+          'Call enableMultiTenant() with an InstallationRegistry, or set ' +
+          'allowInMemoryStorage only for development/testing.'
+        );
+      }
       this.enableMultiTenantInMemory();
-      console.log('⚠️  Multi-tenant mode enabled with in-memory provider');
-      console.log('    For production, use enableMultiTenant() with a persistent provider');
+      console.warn('Multi-tenant mode is using volatile in-memory storage');
     }
 
     // Import dinamico per evitare dipendenze circolari
@@ -280,6 +306,25 @@ export class RelazioPlugin {
    */
   getJobQueue(): JobQueue | undefined {
     return this.jobQueue;
+  }
+
+  private prepareTransformResult(
+    result: TransformResult,
+    inputEntityId: string
+  ): TransformResult {
+    if (
+      result.entities.length > MAX_RESULT_ENTITIES ||
+      result.edges.length > MAX_RESULT_EDGES
+    ) {
+      throw new Error('Transform result exceeds platform limits');
+    }
+    const validation = validateTransformResult(result, inputEntityId);
+    if (!validation.valid) {
+      throw new Error(
+        `Invalid transform result: ${validation.errors.join('; ')}`
+      );
+    }
+    return { ...result, success: result.success ?? true };
   }
 
   /**

@@ -13,7 +13,10 @@ import type {
  */
 export class ManifestGenerator {
   private config: PluginConfig;
-  private transforms: Array<TransformConfig | AsyncTransformConfig> = [];
+  private transforms: Array<{
+    config: TransformConfig | AsyncTransformConfig;
+    async: boolean;
+  }> = [];
   private configSchema?: ConfigSchema;
 
   constructor(config: PluginConfig) {
@@ -24,8 +27,11 @@ export class ManifestGenerator {
     this.configSchema = schema;
   }
 
-  addTransform(transform: TransformConfig | AsyncTransformConfig): void {
-    this.transforms.push(transform);
+  addTransform(
+    transform: TransformConfig | AsyncTransformConfig,
+    isAsync = false
+  ): void {
+    this.transforms.push({ config: transform, async: isAsync });
   }
 
   /**
@@ -49,14 +55,10 @@ export class ManifestGenerator {
     const outputTypes = new Set<EntityType>();
     let hasAsync = false;
 
-    for (const transform of this.transforms) {
+    for (const { config: transform, async: isAsync } of this.transforms) {
       inputTypes.add(transform.inputType);
       transform.outputTypes.forEach((type) => outputTypes.add(type));
-      
-      // Check if it's async transform
-      if ('async' in transform) {
-        hasAsync = true;
-      }
+      if (isAsync) hasAsync = true;
     }
 
     const manifest: PluginManifest = {
@@ -79,7 +81,7 @@ export class ManifestGenerator {
           estimatedTime: hasAsync ? 'minutes' : 'seconds',
           supportsAsync: hasAsync,
         },
-        transforms: this.transforms.map((transform) => ({
+        transforms: this.transforms.map(({ config: transform, async }) => ({
           id: transform.id,
           name: transform.name,
           description: transform.description,
@@ -87,7 +89,9 @@ export class ManifestGenerator {
           outputTypes: transform.outputTypes,
           endpoint: `${options.endpoint}/${transform.id}`,
           method: 'POST',
-          async: 'async' in transform,
+          async,
+          premium: transform.premium,
+          credits: transform.credits,
         })),
         metadata: {
           tags: options.tags || [],
@@ -115,4 +119,3 @@ export class ManifestGenerator {
     return JSON.stringify(manifest, null, indent);
   }
 }
-

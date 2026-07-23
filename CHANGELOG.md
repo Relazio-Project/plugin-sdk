@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-07-23
+
+### Added
+- Signed workspace requests with timestamp, nonce, and replay protection.
+- Pluggable shared `RequestReplayStore` for multi-replica deployments.
+- Encrypted atomic file storage for single-instance addon installations.
+- Authenticated manifest, register, unregister, and statistics routes.
+- Async webhook event IDs and bounded retry delivery.
+- Runtime request and result limits.
+
+### Changed
+- Renamed organization protocol fields to workspace fields.
+- Multi-tenant startup now requires persistent storage unless volatile storage
+  is explicitly enabled for development.
+- Registration rotates workspace webhook secrets.
+- Express 5 is now the supported HTTP adapter.
+
+### Security
+- Removed wildcard CORS behavior and unauthenticated operational statistics.
+- Added callback origin validation and constant-time token comparisons.
+- Added strict HMAC format validation and replay rejection.
+
 ## [0.2.0] - 2025-12-22
 
 ### Added

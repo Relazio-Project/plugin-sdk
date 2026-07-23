@@ -54,9 +54,38 @@ export class HMACUtils {
   static extractSignature(header: string | null): string | null {
     if (!header) return null;
     
-    const match = header.match(/^sha256=([a-f0-9]+)$/i);
+    const match = header.match(/^sha256=([a-f0-9]{64})$/i);
     return match ? match[1] : null;
   }
+}
+
+export function buildRequestCanonicalPayload(
+  body: string,
+  workspaceId: string,
+  timestamp: string,
+  nonce: string
+): string {
+  return `${timestamp}.${nonce}.${workspaceId}.${body}`;
+}
+
+export function verifyPlatformRequestSignature(input: {
+  body: string;
+  workspaceId: string;
+  timestamp: string;
+  nonce: string;
+  signatureHeader: string | null;
+  secret: string;
+}): boolean {
+  return verifyWebhookSignature(
+    buildRequestCanonicalPayload(
+      input.body,
+      input.workspaceId,
+      input.timestamp,
+      input.nonce
+    ),
+    input.signatureHeader,
+    input.secret
+  );
 }
 
 /**
@@ -73,4 +102,3 @@ export function verifyWebhookSignature(
   const hmac = new HMACUtils(secret);
   return hmac.verify(payload, signature);
 }
-

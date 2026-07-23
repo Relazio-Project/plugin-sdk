@@ -136,7 +136,7 @@ export interface OSINTEdge {
 export interface TransformInput {
   entity: OSINTEntity; // Ora include già l'ID obbligatorio
   config?: Record<string, any>;
-  organizationId?: string; // ID organization per multi-tenancy
+  workspaceId?: string;
 }
 
 /**
@@ -195,6 +195,8 @@ export interface TransformConfig {
   description: string;
   inputType: EntityType;
   outputTypes: EntityType[];
+  premium?: boolean;
+  credits?: number;
   handler: TransformHandler;
 }
 
@@ -207,6 +209,8 @@ export interface AsyncTransformConfig {
   description: string;
   inputType: EntityType;
   outputTypes: EntityType[];
+  premium?: boolean;
+  credits?: number;
   handler: AsyncTransformHandler;
 }
 
@@ -236,17 +240,37 @@ export interface JobContext {
   cancel: () => Promise<void>;
 }
 
+export interface RequestReplayStore {
+  /**
+   * Atomically records a key until expiresAt.
+   * Returns false when the key was already present.
+   */
+  consume(key: string, expiresAt: number): Promise<boolean>;
+}
+
 /**
  * Opzioni per avviare il server
  */
 export interface StartOptions {
   port: number;
   host?: string;
+  /** Public HTTPS origin used in manifest endpoints and callback validation. */
+  publicUrl?: string;
   https?: {
     key: string;
     cert: string;
   };
-  multiTenant?: boolean; // ⭐ Nuova opzione
+  multiTenant?: boolean;
+  /** Development/testing only. Production should configure persistent storage. */
+  allowInMemoryStorage?: boolean;
+  /** Required in multi-tenant mode; protects manifest and registration. */
+  installationToken?: string;
+  /** Optional bearer token protecting the operational /stats endpoint. */
+  adminToken?: string;
+  maxBodyBytes?: number;
+  requestMaxAgeMs?: number;
+  /** Required for replay protection shared by multiple addon replicas. */
+  requestReplayStore?: RequestReplayStore;
 }
 
 /**
@@ -295,6 +319,8 @@ export interface PluginManifest {
       endpoint: string;
       method: string;
       async: boolean;
+      premium?: boolean;
+      credits?: number;
     }>;
     metadata: {
       tags: string[];
@@ -307,6 +333,7 @@ export interface PluginManifest {
  * Webhook payload dal plugin alla piattaforma
  */
 export interface WebhookPayload {
+  eventId: string;
   jobId: string;
   status: 'processing' | 'completed' | 'failed';
   progress?: number;
@@ -323,7 +350,6 @@ export interface TransformRequest {
   transformId: string;
   input: TransformInput;
   callbackUrl: string;
-  organizationId?: string; // ⭐ ID organization
 }
 
 /**

@@ -24,6 +24,7 @@ export type {
   TransformHandler,
   AsyncTransformHandler,
   JobContext,
+  RequestReplayStore,
   StartOptions,
   ManifestOptions,
   PluginManifest,
@@ -35,7 +36,12 @@ export type {
 } from './core/types';
 
 // Security
-export { HMACUtils, verifyWebhookSignature } from './security/hmac';
+export {
+  HMACUtils,
+  buildRequestCanonicalPayload,
+  verifyPlatformRequestSignature,
+  verifyWebhookSignature
+} from './security/hmac';
 
 // Jobs
 export { JobProgressTracker, JobQueue, InMemorySecretProvider } from './jobs/progress';
@@ -44,7 +50,8 @@ export type { WebhookSecretProvider } from './jobs/progress';
 // Registry & Multi-tenant
 export { 
   InstallationRegistry, 
-  MemoryStorage 
+  MemoryStorage,
+  EncryptedFileStorage
 } from './registry/installation';
 export type { 
   Installation, 
@@ -88,4 +95,3 @@ export {
   singleEntityResult,
   multiEntityResult,
 } from './utils/result-builder';
-

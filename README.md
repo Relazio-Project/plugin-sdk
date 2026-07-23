@@ -1,261 +1,184 @@
 # Relazio Plugin SDK
 
-Official SDK for building external plugins for the Relazio OSINT platform.
+Official TypeScript SDK for external Relazio addons.
 
 [![npm version](https://img.shields.io/npm/v/@relazio/plugin-sdk.svg)](https://www.npmjs.com/package/@relazio/plugin-sdk)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-## Overview
+## Security Contract
 
-The Relazio Plugin SDK provides a complete framework for building secure, scalable external plugins that extend the Relazio platform's capabilities with minimal boilerplate.
+SDK 0.3 implements the platform addon protocol:
 
-## Features
+- personalized manifest and registration tokens;
+- HMAC-SHA256 signed transform and unregister requests;
+- timestamp and nonce replay protection;
+- isolated webhook secrets per workspace;
+- callback origin validation;
+- idempotent webhook event IDs;
+- bounded request bodies and transform results;
+- encrypted persistent storage for single-instance deployments.
 
-- **Multi-Tenant Support**: Automatic organization management with isolated configurations
-- **Sync & Async Transforms**: Support for both immediate and long-running operations
-- **Automatic Endpoints**: Built-in `/register`, `/unregister`, and `/manifest.json` endpoints
-- **Security**: HMAC-SHA256 signature generation and validation
-- **Job Management**: Progress tracking and webhook notifications for async operations
-- **TypeScript**: Full type safety and IntelliSense support
-- **Scalable Entity Creation**: Universal `createEntity()` function works with any entity type
-- **Automatic ID Generation**: Deterministic ID generation for entities and edges
-- **Result Builder**: Fluent API for constructing complex transform results
-- **Automatic Validation**: Format validation according to Relazio specifications
+Do not expose transform routes through an adapter that bypasses the SDK server.
 
-## Installation
+## Install
 
 ```bash
 npm install @relazio/plugin-sdk
 ```
 
-## Quick Start
+Node.js 18 or newer is required.
+
+## Minimal Addon
 
 ```typescript
-import { RelazioPlugin, createEntity, ResultBuilder } from '@relazio/plugin-sdk';
+import {
+  EncryptedFileStorage,
+  InstallationRegistry,
+  RelazioPlugin,
+  ResultBuilder,
+  createEntity
+} from '@relazio/plugin-sdk';
+
+const pluginId = 'domain-lookup';
+const pluginVersion = '1.0.0';
 
 const plugin = new RelazioPlugin({
-  id: 'my-plugin',
-  name: 'My Plugin',
-  version: '1.0.0',
-  author: 'Your Name',
-  description: 'Plugin description',
+  id: pluginId,
+  name: 'Domain Lookup',
+  version: pluginVersion,
+  author: 'Your Company',
+  description: 'Resolves domains to IP addresses',
   category: 'network'
 });
 
 plugin.transform({
-  id: 'my-transform',
-  name: 'My Transform',
-  description: 'Transforms data',
+  id: 'resolve-domain',
+  name: 'Resolve Domain',
+  description: 'Returns the resolved IP address',
   inputType: 'domain',
   outputTypes: ['ip'],
-  
   async handler(input) {
-    // Create entity using universal createEntity()
-    const ip = createEntity('ip', '8.8.8.8', {
-      label: 'Google DNS',
-      metadata: { country: 'US' }
-    });
-    
-    // Build result with automatic edge creation
+    const ip = createEntity('ip', '203.0.113.10');
     return new ResultBuilder(input)
-      .addEntity(ip, 'resolves to', {
-        relationship: 'dns_resolution'
-      })
-      .setMessage('DNS resolved successfully')
+      .addEntity(ip, 'resolves to', { relationship: 'resolves_to' })
       .build();
   }
 });
 
-await plugin.start({ 
-  port: 3000,
-  multiTenant: true
+const storage = new EncryptedFileStorage(
+  process.env.ADDON_STORAGE_PATH || './data/installations.enc',
+  process.env.ADDON_STORAGE_ENCRYPTION_KEY!
+);
+plugin.enableMultiTenant(
+  new InstallationRegistry(pluginId, pluginVersion, storage)
+);
+
+await plugin.start({
+  port: 3001,
+  host: '0.0.0.0',
+  publicUrl: process.env.PUBLIC_URL,
+  multiTenant: true,
+  installationToken: process.env.ADDON_INSTALL_TOKEN,
+  adminToken: process.env.ADDON_ADMIN_TOKEN
 });
 ```
 
-## Documentation
+Both `ADDON_INSTALL_TOKEN` and `ADDON_STORAGE_ENCRYPTION_KEY` should be
+independent random values of at least 32 characters. Production `PUBLIC_URL`
+should be an HTTPS origin.
 
-- **[Quick Start Guide](./docs/quick-start.md)** - Get started in 5 minutes with sync and async examples
-- **[Builders Guide](./docs/builders-guide.md)** - Complete guide to builders and utilities
-- **[Response Format Specification](./docs/response-format.md)** - Required response format
-- **[Examples Documentation](./docs/examples.md)** - Complete working examples
-  - [simple-sync-example](./examples/simple-sync-example/) - Synchronous transform example
-  - [async-subdomain-scanner](./examples/async-subdomain-scanner/) - Asynchronous transform example
-- [Changelog](./CHANGELOG.md) - Version history
+## Storage Modes
 
-## Entity & Edge Builders
+### Single Instance
 
-The SDK uses a dynamic, scalable approach that works with any entity type:
+`EncryptedFileStorage` uses AES-256-GCM, file permissions `0600`, and atomic
+replacement. Keep its file on a persistent volume and back up the encryption
+key separately.
 
-### Universal Entity Creation
+### Multiple Replicas
+
+Implement `InstallationStorage` using a shared transactional database. Also
+provide `requestReplayStore` to `start()` using Redis or a database operation
+that atomically inserts a nonce until its expiry:
 
 ```typescript
-import { createEntity } from '@relazio/plugin-sdk';
-
-// Works with ANY type - even future types!
-const ip = createEntity('ip', '8.8.8.8', {
-  label: 'Google DNS',
-  metadata: { country: 'US', isp: 'Google LLC' }
+await plugin.start({
+  port: 3001,
+  multiTenant: true,
+  installationToken: process.env.ADDON_INSTALL_TOKEN,
+  requestReplayStore: {
+    async consume(key, expiresAt) {
+      // Return true only when this process wins an atomic insert.
+      return redisSetNonceAtomically(key, expiresAt);
+    }
+  }
 });
+```
 
-const domain = createEntity('domain', 'example.com');
+Without `requestReplayStore`, replay protection is local to one process.
 
-const location = createEntity('location', 'New York, NY', {
-  metadata: { latitude: 40.7, longitude: -74.0 }
+### Development Only
+
+Automatic memory storage must be explicitly enabled:
+
+```typescript
+await plugin.start({
+  port: 3001,
+  multiTenant: true,
+  installationToken: 'development-token-at-least-32-chars',
+  allowInMemoryStorage: true
 });
-
-// Works with custom types too!
-const customEntity = createEntity('future-entity-type', 'value', {
-  metadata: { /* ... */ }
-});
-
-// ID automatically generated: "ip-c909e98d"
-console.log(ip.id);
 ```
 
-**Advantages**:
-- No SDK updates needed for new entity types
-- Works with custom entity types
-- Type-safe with TypeScript
-- Deterministic ID generation
+Memory storage loses workspace secrets on every restart and must not be used
+for production.
 
-### Result Builder
-
-Build complex results easily:
+## Async Transforms
 
 ```typescript
-import { ResultBuilder, createEntity } from '@relazio/plugin-sdk';
-
-handler: async (input) => {
-  const location = createEntity('location', 'Mountain View, CA', {
-    metadata: { latitude: 37.386, longitude: -122.084 }
-  });
-  
-  const org = createEntity('organization', 'Google LLC', {
-    metadata: { asn: 'AS15169' }
-  });
-  
-  // Edges created automatically!
-  return new ResultBuilder(input)
-    .addEntity(location, 'located in', {
-      relationship: 'geolocation'
-    })
-    .addEntity(org, 'assigned by', {
-      relationship: 'isp_assignment'
-    })
-    .setMessage('IP analyzed successfully')
-    .build();
-}
-```
-
-### Supported Entity Types
-
-```typescript
-type EntityType = 
-  | 'email' | 'domain' | 'ip' | 'person' | 'username' 
-  | 'phone' | 'organization' | 'hash' | 'credential'
-  | 'social' | 'document' | 'note' | 'image' | 'video'
-  | 'location' | 'wallet' | 'transaction' | 'exchange'
-  | 'url' | 'maps' | 'custom';
-```
-
-## Multi-Tenant Architecture
-
-The SDK automatically handles organization registration and management:
-
-1. Platform requests `/register` with organization details
-2. SDK generates unique webhook secret
-3. SDK stores organization configuration
-4. Platform receives webhook secret
-5. Plugin processes requests with organization isolation
-
-## Security
-
-All plugins must implement the following security requirements:
-
-- **HTTPS**: Production endpoints must use HTTPS
-- **HMAC Signatures**: All webhooks are signed with HMAC-SHA256
-- **Rate Limiting**: Enforced by the platform (30 req/min, 500 req/hour)
-- **Timeouts**: 30s for sync transforms, 30 minutes maximum for async jobs
-
-## API Reference
-
-### Core Classes
-
-#### RelazioPlugin
-
-Main plugin class that manages transforms and server lifecycle.
-
-```typescript
-const plugin = new RelazioPlugin(config: PluginConfig)
-```
-
-#### Transform Registration
-
-```typescript
-// Synchronous transform
-plugin.transform({
-  id: string,
-  name: string,
-  description: string,
-  inputType: EntityType,
-  outputTypes: EntityType[],
-  handler: async (input, config) => TransformResult
-})
-
-// Asynchronous transform
 plugin.asyncTransform({
-  id: string,
-  name: string,
-  description: string,
-  inputType: EntityType,
-  outputTypes: EntityType[],
-  handler: async (input, config, job) => TransformResult
-})
+  id: 'deep-scan',
+  name: 'Deep Scan',
+  description: 'Runs a longer analysis',
+  inputType: 'domain',
+  outputTypes: ['domain'],
+  async handler(input, _config, job) {
+    await job.updateProgress(25, 'Starting');
+    const result = new ResultBuilder(input)
+      .addEntity(createEntity('domain', `api.${input.entity.value}`))
+      .build();
+    await job.updateProgress(90, 'Finalizing');
+    return result;
+  }
+});
 ```
 
-#### Server Management
+The SDK signs webhook events, assigns a unique `eventId`, and retries delivery.
+The platform deduplicates those events.
 
-```typescript
-await plugin.start({ 
-  port: number,
-  host?: string,
-  multiTenant?: boolean,
-  https?: { key: string, cert: string }
-})
+## HTTP Routes
 
-await plugin.stop()
-```
+| Route | Protection |
+| --- | --- |
+| `GET /health` | Public, minimal operational metadata |
+| `GET /manifest.json` | Personalized install token |
+| `POST /register` | Bearer install token |
+| `POST /unregister` | Signed workspace request |
+| `POST /<transformId>` | Signed workspace request |
+| `GET /stats` | Admin bearer token, otherwise returns 404 |
 
-## Requirements
-
-- Node.js >= 18.0.0
-- TypeScript >= 5.0.0 (for development)
-
-## Examples
-
-### Synchronous Transform
+## Publication Checks
 
 ```bash
-cd examples/simple-sync-example
-npm install
-npm start
+npm run build
+npm test -- --run
+npm audit
+npm pack --dry-run
 ```
 
-### Asynchronous Transform
-
-```bash
-cd examples/async-subdomain-scanner
-npm install
-npm start
-```
+The full reference deployment is maintained in
+[`relazio-plugin-example`](https://github.com/rstlgu/relazio-plugin-example).
 
 ## License
 
-MIT License - see [LICENSE](./LICENSE) file for details.
-
-## Links
-
-- [npm Package](https://www.npmjs.com/package/@relazio/plugin-sdk)
-- [GitHub Repository](https://github.com/relazio/plugin-sdk)
-- [Issue Tracker](https://github.com/relazio/plugin-sdk/issues)
-- [Documentation](./docs/)
+MIT
