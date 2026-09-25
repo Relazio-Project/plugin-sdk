@@ -31,9 +31,10 @@ describe('HMACUtils', () => {
   });
 
   it('should extract signature from header', () => {
-    const header = 'sha256=abc123';
+    const signature = 'a'.repeat(64);
+    const header = `sha256=${signature}`;
     const sig = HMACUtils.extractSignature(header);
-    expect(sig).toBe('abc123');
+    expect(sig).toBe(signature);
   });
 
   it('should return null for invalid header', () => {
@@ -47,4 +48,3 @@ describe('HMACUtils', () => {
     expect(verifyWebhookSignature(payload, header, secret)).toBe(true);
   });
 });
-

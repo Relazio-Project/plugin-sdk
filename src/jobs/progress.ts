@@ -1,5 +1,6 @@
 import type { JobContext, WebhookPayload } from '../core/types';
 import { HMACUtils } from '../security/hmac';
+import crypto from 'node:crypto';
 
 /**
  * Implementazione del contesto job per transform asincrone
@@ -23,6 +24,7 @@ export class JobProgressTracker implements JobContext {
     this.currentProgress = Math.min(100, Math.max(0, progress));
 
     await this.sendWebhook({
+      eventId: crypto.randomUUID(),
       jobId: this.jobId,
       status: 'processing',
       progress: this.currentProgress,
@@ -36,6 +38,7 @@ export class JobProgressTracker implements JobContext {
    */
   async complete(result: any): Promise<void> {
     await this.sendWebhook({
+      eventId: crypto.randomUUID(),
       jobId: this.jobId,
       status: 'completed',
       progress: 100,
@@ -49,6 +52,7 @@ export class JobProgressTracker implements JobContext {
    */
   async fail(error: string): Promise<void> {
     await this.sendWebhook({
+      eventId: crypto.randomUUID(),
       jobId: this.jobId,
       status: 'failed',
       error,
@@ -68,29 +72,36 @@ export class JobProgressTracker implements JobContext {
    * Invia webhook alla piattaforma
    */
   private async sendWebhook(payload: WebhookPayload): Promise<void> {
+    // Bind the signed event to the platform job, not the SDK's internal job ID.
     const platformJobId = new URL(this.callbackUrl).pathname.split('/').pop();
-    const body = JSON.stringify({ ...payload, platformJobId });
+    const body = JSON.stringify({ ...payload, jobId: platformJobId });
     const signature = this.hmac.generateHeader(body);
 
-    try {
-      const response = await fetch(this.callbackUrl, {
-        redirect: 'error',
-        signal: AbortSignal.timeout(10000),
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Plugin-Signature': signature,
-        },
-        body,
-      });
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const response = await fetch(this.callbackUrl, {
+          method: 'POST',
+          redirect: 'error',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Plugin-Signature': signature,
+          },
+          body,
+          signal: AbortSignal.timeout(10_000),
+        });
 
-      if (!response.ok) {
-        console.error(`Webhook failed: ${response.status} ${response.statusText}`);
+        if (response.ok) return;
+        lastError = new Error(
+          `Webhook failed: ${response.status} ${response.statusText}`
+        );
+      } catch (error) {
+        lastError =
+          error instanceof Error ? error : new Error('Webhook request failed');
       }
-    } catch (error) {
-      console.error('Failed to send webhook:', error);
-      // Non rilanciare l'errore per non bloccare il job
+      await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** attempt));
     }
+    throw lastError || new Error('Webhook delivery failed');
   }
 }
 

@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto';
 import type {
   PluginConfig,
   ConfigSchema,
@@ -11,9 +10,14 @@ import type {
   TransformResult,
 } from './types';
 import { ManifestGenerator } from './manifest';
-import { JobQueue, type WebhookSecretProvider, InMemorySecretProvider } from '../jobs/progress';
+import { JobQueue, type WebhookSecretProvider } from '../jobs/progress';
 import { InstallationRegistry } from '../registry/installation';
 import type { Server } from '../server/express';
+import crypto from 'node:crypto';
+import { validateTransformResult } from '../utils/builders';
+
+const MAX_RESULT_ENTITIES = 1000;
+const MAX_RESULT_EDGES = 2000;
 
 /**
  * Classe principale per creare plugin PARANOD
@@ -53,7 +57,7 @@ export class ParanodPlugin {
     }
 
     this.transforms.set(config.id, config);
-    this.manifestGenerator.addTransform(config);
+    this.manifestGenerator.addTransform(config, false);
   }
 
   /**
@@ -65,7 +69,7 @@ export class ParanodPlugin {
     }
 
     this.asyncTransforms.set(config.id, config);
-    this.manifestGenerator.addTransform(config);
+    this.manifestGenerator.addTransform(config, true);
 
     // Inizializza job queue se non esiste
     if (!this.jobQueue) {
@@ -149,7 +153,8 @@ export class ParanodPlugin {
       throw new Error(`Transform ${transformId} not found`);
     }
 
-    return await transform.handler(input, input.config || {});
+    const result = await transform.handler(input, input.config || {});
+    return this.prepareTransformResult(result, input.entity.id);
   }
 
   /**
@@ -172,12 +177,16 @@ export class ParanodPlugin {
     }
 
     // Genera job ID
-    const jobId = `${this.config.id}-${transformId}-${randomUUID()}`;
+    const jobId = `${this.config.id}-${transformId}-${crypto.randomUUID()}`;
     
     // Crea job con supporto multi-tenant
     let job;
     if (this.multiTenant && workspaceId) {
-      job = await this.jobQueue.createJobForWorkspace(jobId, callbackUrl, workspaceId);
+      job = await this.jobQueue.createJobForWorkspace(
+        jobId,
+        callbackUrl,
+        workspaceId
+      );
     } else {
       job = this.jobQueue.createJob(jobId, callbackUrl);
     }
@@ -186,10 +195,14 @@ export class ParanodPlugin {
     setImmediate(async () => {
       try {
         const result = await transform.handler(input, input.config || {}, job);
-        await job.complete(result);
+        await job.complete(this.prepareTransformResult(result, input.entity.id));
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        await job.fail(errorMessage);
+        try {
+          await job.fail(errorMessage);
+        } catch (deliveryError) {
+          console.error('Failed to deliver terminal job webhook:', deliveryError);
+        }
       } finally {
         this.jobQueue?.removeJob(jobId);
       }
@@ -202,11 +215,23 @@ export class ParanodPlugin {
    * Avvia il server plugin
    */
   async start(options: StartOptions): Promise<void> {
+    if (options.multiTenant && !options.installationToken) {
+      throw new Error(
+        'installationToken is required when multiTenant mode is enabled'
+      );
+    }
+
     // Se multiTenant option è specificata, abilita multi-tenancy automaticamente
     if (options.multiTenant && !this.multiTenant) {
+      if (!options.allowInMemoryStorage) {
+        throw new Error(
+          'Multi-tenant mode requires persistent installation storage. ' +
+          'Call enableMultiTenant() with an InstallationRegistry, or set ' +
+          'allowInMemoryStorage only for development/testing.'
+        );
+      }
       this.enableMultiTenantInMemory();
-      console.log('⚠️  Multi-tenant mode enabled with in-memory provider');
-      console.log('    For production, use enableMultiTenant() with a persistent provider');
+      console.warn('Multi-tenant mode is using volatile in-memory storage');
     }
 
     // Import dinamico per evitare dipendenze circolari
@@ -283,6 +308,25 @@ export class ParanodPlugin {
     return this.jobQueue;
   }
 
+  private prepareTransformResult(
+    result: TransformResult,
+    inputEntityId: string
+  ): TransformResult {
+    if (
+      result.entities.length > MAX_RESULT_ENTITIES ||
+      result.edges.length > MAX_RESULT_EDGES
+    ) {
+      throw new Error('Transform result exceeds platform limits');
+    }
+    const validation = validateTransformResult(result, inputEntityId);
+    if (!validation.valid) {
+      throw new Error(
+        `Invalid transform result: ${validation.errors.join('; ')}`
+      );
+    }
+    return { ...result, success: result.success ?? true };
+  }
+
   /**
    * Verifica se è in modalità multi-tenant
    */
@@ -299,4 +343,4 @@ export class ParanodPlugin {
 }
 
 // Export alias per backwards compatibility
-export { ParanodPlugin as OSINTPlugin };
+export { ParanodPlugin as OSINTPlugin, ParanodPlugin as RelazioPlugin };

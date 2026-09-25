@@ -1,6 +1,6 @@
 {
   "name": "@paranod/plugin-sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Official SDK for building external plugins for PARANOD",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -22,7 +22,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/paranod/plugin-sdk.git"
+    "url": "git+https://github.com/Relazio-Project/plugin-sdk.git"
   },
   "files": [
     "dist",
@@ -35,25 +35,25 @@
     "access": "public"
   },
   "dependencies": {
-    "express": "^4.22.2",
+    "express": "^5.1.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@types/express": "^4.17.21",
-    "@types/node": "^20.10.6",
-    "@typescript-eslint/eslint-plugin": "^6.17.0",
-    "@typescript-eslint/parser": "^6.17.0",
-    "eslint": "^8.56.0",
+    "@types/express": "^5.0.3",
+    "@types/node": "^20.19.0",
+    "@typescript-eslint/eslint-plugin": "^8.65.0",
+    "@typescript-eslint/parser": "^8.65.0",
+    "eslint": "^8.57.1",
     "typescript": "^5.3.3",
-    "vitest": "^4.0.16"
+    "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "overrides": {
     "qs": "6.16.0",
     "@typescript-eslint/typescript-estree": {
       "minimatch": "^9.0.9"
     }
-  },
-  "engines": {
-    "node": ">=18.0.0"
   }
 }
