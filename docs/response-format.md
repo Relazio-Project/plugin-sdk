@@ -60,34 +60,14 @@ External plugins can return results in two modes:
 
 ### Supported Entity Types
 
-```typescript
-type EntityType = 
-  | 'email'           // Email address
-  | 'domain'          // Domain name
-  | 'ip'              // IP address
-  | 'person'          // Person name
-  | 'username'        // Username/handle
-  | 'phone'           // Phone number
-  | 'organization'    // Organization/company
-  | 'hash'            // Hash/checksum
-  | 'credential'      // Credential pair
-  | 'social'          // Social media profile
-  | 'document'        // Document
-  | 'note'            // Text note
-  | 'image'           // Image
-  | 'video'           // Video
-  | 'location'        // Geographic location
-  | 'wallet'          // Crypto wallet
-  | 'transaction'     // Transaction
-  | 'exchange'        // Exchange
-  | 'url'             // URL
-  | 'maps'            // Map view
-  | 'custom';         // Custom entity
-```
+The canonical list is the exported `EntityType` union in
+[`src/core/types.ts`](../src/core/types.ts). Use `custom` for unsupported
+classifications and store the original type name in `metadata`.
 
 ### Entity Examples
 
 **IP Address**:
+
 ```json
 {
   "id": "ip-8.8.8.8",
@@ -102,6 +82,7 @@ type EntityType =
 ```
 
 **Location**:
+
 ```json
 {
   "id": "loc-mountain-view-ca",
@@ -116,6 +97,7 @@ type EntityType =
 ```
 
 **Organization**:
+
 ```json
 {
   "id": "org-google-llc",
@@ -129,6 +111,7 @@ type EntityType =
 ```
 
 **Note with Markdown**:
+
 ```json
 {
   "id": "note-ip-analysis-1",
@@ -168,6 +151,7 @@ type EntityType =
 ### Edge Examples
 
 **IP to Location**:
+
 ```json
 {
   "id": "edge-ip-to-location-1",
@@ -179,6 +163,7 @@ type EntityType =
 ```
 
 **IP to Organization**:
+
 ```json
 {
   "id": "edge-ip-to-org-1",
@@ -354,11 +339,11 @@ const edgeId = `edge-${sourceId}-${targetId}-${Date.now()}`;
 Use prefixes to identify the type:
 
 ```javascript
-"ip-8.8.8.8"
-"loc-nyc-us"
-"org-google"
-"note-analysis-1"
-"edge-ip-to-loc-1"
+"ip-8.8.8.8";
+"loc-nyc-us";
+"org-google";
+"note-analysis-1";
+"edge-ip-to-loc-1";
 ```
 
 ### Input Entity ID
@@ -387,81 +372,83 @@ Always use the input entity ID in edges as `sourceId`:
 ## SDK Example
 
 ```typescript
-import crypto from 'crypto';
+import crypto from "crypto";
 
 function generateEntityId(type: string, value: string): string {
-  const hash = crypto.createHash('md5')
+  const hash = crypto
+    .createHash("md5")
     .update(value.toLowerCase().trim())
-    .digest('hex')
+    .digest("hex")
     .substring(0, 8);
   return `${type}-${hash}`;
 }
 
 function generateEdgeId(sourceId: string, targetId: string): string {
-  const hash = crypto.createHash('md5')
+  const hash = crypto
+    .createHash("md5")
     .update(`${sourceId}-${targetId}`)
-    .digest('hex')
+    .digest("hex")
     .substring(0, 8);
   return `edge-${hash}`;
 }
 
 async function executeTransform(input) {
   const { entity } = input;
-  
+
   const lookupResult = await lookupIP(entity.value);
-  
+
   const entities = [
     {
-      id: generateEntityId('location', lookupResult.city),
-      type: 'location',
+      id: generateEntityId("location", lookupResult.city),
+      type: "location",
       value: lookupResult.city,
       metadata: {
         latitude: lookupResult.lat,
-        longitude: lookupResult.lon
-      }
+        longitude: lookupResult.lon,
+      },
     },
     {
-      id: generateEntityId('organization', lookupResult.isp),
-      type: 'organization',
+      id: generateEntityId("organization", lookupResult.isp),
+      type: "organization",
       value: lookupResult.isp,
       metadata: {
-        asn: lookupResult.asn
-      }
-    }
+        asn: lookupResult.asn,
+      },
+    },
   ];
-  
+
   const edges = [
     {
       id: generateEdgeId(entity.id, entities[0].id),
       sourceId: entity.id,
       targetId: entities[0].id,
-      label: 'located in',
-      relationship: 'geolocation'
+      label: "located in",
+      relationship: "geolocation",
     },
     {
       id: generateEdgeId(entity.id, entities[1].id),
       sourceId: entity.id,
       targetId: entities[1].id,
-      label: 'assigned by',
-      relationship: 'isp_assignment'
-    }
+      label: "assigned by",
+      relationship: "isp_assignment",
+    },
   ];
-  
+
   return {
     async: false,
     result: {
       success: true,
       entities,
       edges,
-      message: `Analyzed IP ${entity.value}`
-    }
+      message: `Analyzed IP ${entity.value}`,
+    },
   };
 }
 ```
 
 ## Validation
 
-The Relazio system validates responses and rejects non-compliant ones.
+The PARANOD system validates responses and rejects non-compliant ones.
 
 ### Applied Validations
 

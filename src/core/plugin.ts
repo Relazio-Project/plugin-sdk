@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import type {
   PluginConfig,
   ConfigSchema,
@@ -15,9 +16,9 @@ import { InstallationRegistry } from '../registry/installation';
 import type { Server } from '../server/express';
 
 /**
- * Classe principale per creare plugin Relazio
+ * Classe principale per creare plugin PARANOD
  */
-export class RelazioPlugin {
+export class ParanodPlugin {
   private config: PluginConfig;
   private manifestGenerator: ManifestGenerator;
   private transforms = new Map<string, TransformConfig>();
@@ -158,7 +159,7 @@ export class RelazioPlugin {
     transformId: string,
     input: TransformInput,
     callbackUrl: string,
-    organizationId?: string
+    workspaceId?: string
   ): Promise<{ jobId: string; estimatedTime?: number }> {
     const transform = this.asyncTransforms.get(transformId);
     
@@ -171,12 +172,12 @@ export class RelazioPlugin {
     }
 
     // Genera job ID
-    const jobId = `${this.config.id}-${transformId}-${Date.now()}`;
+    const jobId = `${this.config.id}-${transformId}-${randomUUID()}`;
     
     // Crea job con supporto multi-tenant
     let job;
-    if (this.multiTenant && organizationId) {
-      job = await this.jobQueue.createJobForOrganization(jobId, callbackUrl, organizationId);
+    if (this.multiTenant && workspaceId) {
+      job = await this.jobQueue.createJobForWorkspace(jobId, callbackUrl, workspaceId);
     } else {
       job = this.jobQueue.createJob(jobId, callbackUrl);
     }
@@ -298,4 +299,4 @@ export class RelazioPlugin {
 }
 
 // Export alias per backwards compatibility
-export { RelazioPlugin as OSINTPlugin };
+export { ParanodPlugin as OSINTPlugin };

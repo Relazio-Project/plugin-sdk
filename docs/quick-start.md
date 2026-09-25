@@ -1,11 +1,11 @@
 # Quick Start Guide
 
-This guide demonstrates how to create Relazio plugins using the SDK.
+This guide demonstrates how to create PARANOD plugins using the SDK.
 
 ## Installation
 
 ```bash
-npm install @relazio/plugin-sdk
+npm install @paranod/plugin-sdk
 ```
 
 ## Core Concepts
@@ -20,56 +20,60 @@ The SDK provides two types of transforms:
 Synchronous transforms process requests and return results immediately.
 
 ```typescript
-import { RelazioPlugin, createEntity, ResultBuilder } from '@relazio/plugin-sdk';
+import {
+  ParanodPlugin,
+  createEntity,
+  ResultBuilder,
+} from "@paranod/plugin-sdk";
 
-const plugin = new RelazioPlugin({
-  id: 'domain-analyzer',
-  name: 'Domain Analyzer',
-  version: '1.0.0',
-  author: 'Your Name',
-  description: 'Analyzes domains and returns related entities',
-  category: 'network',
+const plugin = new ParanodPlugin({
+  id: "domain-analyzer",
+  name: "Domain Analyzer",
+  version: "1.0.0",
+  author: "Your Name",
+  description: "Analyzes domains and returns related entities",
+  category: "network",
 });
 
 plugin.transform({
-  id: 'analyze-domain',
-  name: 'Analyze Domain',
-  inputType: 'domain',
-  outputTypes: ['ip', 'location', 'organization'],
-  
+  id: "analyze-domain",
+  name: "Analyze Domain",
+  inputType: "domain",
+  outputTypes: ["ip", "location", "organization"],
+
   handler: async (input) => {
     const domain = input.entity.value;
-    
+
     // Your analysis logic
     const ip = await resolveDNS(domain);
     const location = await getGeoLocation(ip);
     const organization = await getISPInfo(ip);
-    
+
     // Create entities using createEntity()
-    const ipEntity = createEntity('ip', ip, {
-      metadata: { resolvedFrom: domain }
+    const ipEntity = createEntity("ip", ip, {
+      metadata: { resolvedFrom: domain },
     });
-    
-    const locationEntity = createEntity('location', location.city, {
+
+    const locationEntity = createEntity("location", location.city, {
       metadata: {
         latitude: location.lat,
         longitude: location.lon,
-        country: location.country
-      }
+        country: location.country,
+      },
     });
-    
-    const orgEntity = createEntity('organization', organization.name, {
-      metadata: { asn: organization.asn }
+
+    const orgEntity = createEntity("organization", organization.name, {
+      metadata: { asn: organization.asn },
     });
-    
+
     // Build result with automatic edge creation
     return new ResultBuilder(input)
-      .addEntity(ipEntity, 'resolves to')
-      .addEntity(locationEntity, 'located in')
-      .addEntity(orgEntity, 'hosted by')
-      .setMessage('Analysis completed')
+      .addEntity(ipEntity, "resolves to")
+      .addEntity(locationEntity, "located in")
+      .addEntity(orgEntity, "hosted by")
+      .setMessage("Analysis completed")
       .build();
-  }
+  },
 });
 
 await plugin.start({ port: 3000 });
@@ -84,55 +88,59 @@ await plugin.start({ port: 3000 });
 Asynchronous transforms handle long-running operations with progress tracking and webhook callbacks.
 
 ```typescript
-import { RelazioPlugin, createEntity, ResultBuilder } from '@relazio/plugin-sdk';
+import {
+  ParanodPlugin,
+  createEntity,
+  ResultBuilder,
+} from "@paranod/plugin-sdk";
 
-const plugin = new RelazioPlugin({
-  id: 'subdomain-scanner',
-  name: 'Subdomain Scanner',
-  version: '1.0.0',
-  author: 'Your Name',
-  description: 'Scans for subdomains',
-  category: 'network',
+const plugin = new ParanodPlugin({
+  id: "subdomain-scanner",
+  name: "Subdomain Scanner",
+  version: "1.0.0",
+  author: "Your Name",
+  description: "Scans for subdomains",
+  category: "network",
 });
 
 // Required for async transforms
-plugin.setWebhookSecret(process.env.WEBHOOK_SECRET || 'dev-secret');
+plugin.setWebhookSecret(process.env.WEBHOOK_SECRET || "dev-secret");
 
 plugin.asyncTransform({
-  id: 'scan-subdomains',
-  name: 'Scan Subdomains',
-  inputType: 'domain',
-  outputTypes: ['domain'],
-  
+  id: "scan-subdomains",
+  name: "Scan Subdomains",
+  inputType: "domain",
+  outputTypes: ["domain"],
+
   handler: async (input, config, job) => {
     const domain = input.entity.value;
-    
+
     // Update progress during execution
-    await job.updateProgress(0, 'Starting scan');
-    
+    await job.updateProgress(0, "Starting scan");
+
     const results = [];
     for (let i = 0; i < totalScans; i++) {
       const subdomain = await scanForSubdomain(domain, i);
       if (subdomain) results.push(subdomain);
-      
+
       // Update progress
       const progress = ((i + 1) / totalScans) * 100;
       await job.updateProgress(progress, `Found ${results.length} subdomains`);
     }
-    
+
     // Create entities for results
-    const subdomainEntities = results.map(sub =>
-      createEntity('domain', sub, {
-        metadata: { discoveredFrom: domain }
-      })
+    const subdomainEntities = results.map((sub) =>
+      createEntity("domain", sub, {
+        metadata: { discoveredFrom: domain },
+      }),
     );
-    
+
     // Build and return result
     return new ResultBuilder(input)
-      .addEntities(subdomainEntities, 'subdomain')
+      .addEntities(subdomainEntities, "subdomain")
       .setMessage(`Scan completed: ${results.length} subdomains found`)
       .build();
-  }
+  },
 });
 
 await plugin.start({ port: 3000 });
@@ -146,7 +154,8 @@ await plugin.start({ port: 3000 });
 
 ### createEntity()
 
-Creates an entity with automatic ID generation. Works with any entity type.
+Creates an entity with automatic ID generation. `type` must be a member of the
+SDK `EntityType` union.
 
 ```typescript
 createEntity(type: EntityType, value: string, options?: {
@@ -159,15 +168,15 @@ createEntity(type: EntityType, value: string, options?: {
 **Examples**:
 
 ```typescript
-createEntity('ip', '8.8.8.8')
-createEntity('domain', 'example.com')
-createEntity('location', 'New York, NY', {
-  metadata: { latitude: 40.7, longitude: -74.0 }
-})
-createEntity('note', 'Analysis Results', {
-  label: '## Results\n\nAnalysis completed successfully',
-  metadata: { format: 'markdown' }
-})
+createEntity("ip", "8.8.8.8");
+createEntity("domain", "example.com");
+createEntity("location", "New York, NY", {
+  metadata: { latitude: 40.7, longitude: -74.0 },
+});
+createEntity("note", "Analysis Results", {
+  label: "## Results\n\nAnalysis completed successfully",
+  metadata: { format: "markdown" },
+});
 ```
 
 ### ResultBuilder
@@ -178,17 +187,17 @@ Constructs transform results with automatic edge generation.
 const result = new ResultBuilder(input);
 
 // Add entity with automatic edge
-result.addEntity(entity, 'edge label', {
-  relationship: 'relationship_type'
+result.addEntity(entity, "edge label", {
+  relationship: "relationship_type",
 });
 
 // Add multiple entities with the same edge type
-result.addEntities(entities, 'edge label');
+result.addEntities(entities, "edge label");
 
 // Add message and metadata
 result
-  .setMessage('Operation completed')
-  .addMetadata('executionTime', Date.now());
+  .setMessage("Operation completed")
+  .addMetadata("executionTime", Date.now());
 
 // Build final result
 return result.build();
@@ -205,24 +214,16 @@ createEdge(sourceId, targetId, label, options?)
 **Example**:
 
 ```typescript
-createEdge(
-  'source-entity-id',
-  'target-entity-id',
-  'related to',
-  { relationship: 'custom_relationship' }
-)
+createEdge("source-entity-id", "target-entity-id", "related to", {
+  relationship: "custom_relationship",
+});
 ```
 
 ## Supported Entity Types
 
-```typescript
-'email' | 'domain' | 'ip' | 'person' | 'username' | 'phone' 
-| 'organization' | 'hash' | 'credential' | 'social' | 'document' 
-| 'note' | 'image' | 'video' | 'location' | 'wallet' 
-| 'transaction' | 'exchange' | 'url' | 'maps' | 'custom'
-```
-
-The SDK is type-agnostic and works with any entity type, including future additions.
+Import the canonical `EntityType` union from the package or consult
+[`src/core/types.ts`](../src/core/types.ts). For a value without a dedicated
+type, use `custom` and preserve the original classification in metadata.
 
 ## Testing Your Plugin
 
@@ -284,4 +285,3 @@ curl -X POST http://localhost:3000/transforms/your-transform-id \
 - [Response Format Specification](./response-format.md)
 - [Examples Documentation](./examples.md)
 - [Changelog](../CHANGELOG.md)
-

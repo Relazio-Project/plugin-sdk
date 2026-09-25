@@ -1,4 +1,4 @@
-import { RelazioPlugin, createEntity, ResultBuilder } from '../../src';
+import { ParanodPlugin, createEntity, ResultBuilder } from '../../src';
 
 /**
  * 🔄 ESEMPIO ASYNC - Subdomain Scanner
@@ -11,11 +11,11 @@ import { RelazioPlugin, createEntity, ResultBuilder } from '../../src';
  * - Approccio scalabile con createEntity()
  */
 
-const plugin = new RelazioPlugin({
+const plugin = new ParanodPlugin({
   id: 'subdomain-scanner',
   name: 'Subdomain Scanner',
   version: '1.0.0',
-  author: 'Relazio Team',
+  author: 'PARANOD Team',
   description: 'Scans for subdomains using certificate transparency logs (async)',
   category: 'network',
   icon: 'IconRadar',

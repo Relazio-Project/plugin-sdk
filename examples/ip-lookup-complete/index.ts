@@ -1,5 +1,5 @@
 import {
-  RelazioPlugin,
+  ParanodPlugin,
   createEntity,
   ResultBuilder,
   EntityBuilder,
@@ -18,11 +18,11 @@ import {
  * - Funziona anche con tipi custom non predefiniti
  */
 
-const plugin = new RelazioPlugin({
+const plugin = new ParanodPlugin({
   id: 'ip-lookup-complete',
   name: 'IP Lookup Complete',
   version: '1.0.0',
-  author: 'Relazio Team',
+  author: 'PARANOD Team',
   description: 'Complete IP address analysis with geolocation, ISP info, and detailed notes',
   category: 'network',
   icon: 'IconMapPin',
@@ -201,7 +201,7 @@ if (require.main === module) {
     host: '0.0.0.0',
   });
   
-  console.log('\n📚 Esempio completo di utilizzo SDK Relazio');
+  console.log('\n📚 Esempio completo di utilizzo SDK PARANOD');
   console.log('   Questo plugin dimostra:');
   console.log('   ✅ Creazione entità con helper rapidi');
   console.log('   ✅ EntityBuilder per controllo avanzato');

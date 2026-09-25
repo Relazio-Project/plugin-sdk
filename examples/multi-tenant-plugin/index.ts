@@ -1,26 +1,26 @@
-import { RelazioPlugin } from '../src';
+import { ParanodPlugin } from '../src';
 
 /**
  * Esempio 4: Plugin Multi-Tenant
- * Plugin che serve multiple organizations con gestione automatica delle installazioni
+ * Plugin che serve multiple workspaces con gestione automatica delle installazioni
  */
 
-const plugin = new RelazioPlugin({
+const plugin = new ParanodPlugin({
   id: 'multi-tenant-plugin',
   name: 'Multi-Tenant Plugin',
   version: '1.0.0',
-  author: 'Relazio Team',
-  description: 'Plugin that serves multiple organizations',
+  author: 'PARANOD Team',
+  description: 'Plugin that serves multiple workspaces',
   category: 'network',
   icon: 'IconCloud',
 });
 
-// Configurazione per organization (ogni org avrà la sua API key)
+// Configurazione per workspace (ogni workspace avrà la sua API key)
 plugin.configure({
   apiKey: {
     type: 'string',
     label: 'API Key',
-    description: 'Your organization API key',
+    description: 'Your workspace API key',
     required: true,
     secret: true,
   },
@@ -34,7 +34,7 @@ plugin.configure({
   },
 });
 
-// Transform sincrona - ogni org usa la propria config
+// Transform sincrona - ogni workspace usa la propria config
 plugin.transform({
   id: 'lookup-ip',
   name: 'Lookup IP',
@@ -44,13 +44,13 @@ plugin.transform({
 
   handler: async (input, config) => {
     const ip = input.entity.value;
-    const orgId = input.organizationId;
+    const orgId = input.workspaceId;
     const apiKey = config.apiKey;
 
-    console.log(`[Transform] Processing IP ${ip} for org: ${orgId}`);
+    console.log(`[Transform] Processing IP ${ip} for workspace: ${orgId}`);
     console.log(`[Transform] Using API key: ${apiKey?.substring(0, 10)}...`);
 
-    // Simula chiamata API con API key dell'organization
+    // Simula chiamata API con API key dell'workspace
     const mockResult = {
       country: 'US',
       city: 'Mountain View',
@@ -66,7 +66,7 @@ plugin.transform({
           label: 'IP Information',
           metadata: {
             source: 'multi-tenant-plugin',
-            organizationId: orgId,
+            workspaceId: orgId,
           },
         },
         {
@@ -83,12 +83,12 @@ plugin.transform({
           relationship: 'located_in',
         },
       ],
-      message: `Lookup complete for ${ip} (org: ${orgId})`,
+      message: `Lookup complete for ${ip} (workspace: ${orgId})`,
     };
   },
 });
 
-// Transform asincrona - webhook secret corretto per ogni org
+// Transform asincrona - webhook secret corretto per ogni workspace
 plugin.asyncTransform({
   id: 'deep-scan',
   name: 'Deep IP Scan',
@@ -98,9 +98,9 @@ plugin.asyncTransform({
 
   handler: async (input, config, job) => {
     const ip = input.entity.value;
-    const orgId = input.organizationId;
+    const orgId = input.workspaceId;
 
-    console.log(`[Async Transform] Starting scan for ${ip} (org: ${orgId})`);
+    console.log(`[Async Transform] Starting scan for ${ip} (workspace: ${orgId})`);
 
     await job.updateProgress(0, 'Starting deep scan...');
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -118,13 +118,13 @@ plugin.asyncTransform({
           value: `Deep scan results for ${ip}`,
           label: 'Scan Results',
           metadata: {
-            organizationId: orgId,
+            workspaceId: orgId,
             scanDate: new Date().toISOString(),
           },
         },
       ],
       edges: [],
-      message: `Scan complete for org: ${orgId}`,
+      message: `Scan complete for workspace: ${orgId}`,
     };
   },
 });
@@ -140,20 +140,20 @@ if (require.main === module) {
 
   console.log('\n🎉 Multi-Tenant Plugin Started!');
   console.log('\n📋 Automatic Endpoints:');
-  console.log('   POST /register     - Register new organization');
-  console.log('   POST /unregister   - Unregister organization');
+  console.log('   POST /register     - Register new workspace');
+  console.log('   POST /unregister   - Unregister workspace');
   console.log('   GET  /stats        - Get installation statistics');
   console.log('   GET  /manifest.json - Plugin manifest');
   console.log('   GET  /health       - Health check');
   console.log('\n🧪 Test Installation Flow:');
-  console.log('   # 1. Register an organization');
+  console.log('   # 1. Register an workspace');
   console.log('   curl -X POST http://localhost:3003/register \\');
   console.log('     -H "Content-Type: application/json" \\');
-  console.log('     -d \'{"organizationId":"org-test","organizationName":"Test Org","platformUrl":"https://relazio.io"}\'');
-  console.log('\n   # 2. Use a transform (with org header)');
+  console.log('     -d \'{"workspaceId":"workspace-test","workspaceName":"Test Org","platformUrl":"https://paranod.io"}\'');
+  console.log('\n   # 2. Use a transform (with workspace header)');
   console.log('   curl -X POST http://localhost:3003/lookup-ip \\');
   console.log('     -H "Content-Type: application/json" \\');
-  console.log('     -H "X-Organization-Id: org-test" \\');
+  console.log('     -H "X-Workspace-Id: workspace-test" \\');
   console.log('     -d \'{"transformId":"lookup-ip","input":{"entity":{"id":"1","type":"ip","value":"8.8.8.8"},"config":{"apiKey":"test-key-123"}}}\'');
   console.log('\n   # 3. Check stats');
   console.log('   curl http://localhost:3003/stats');
@@ -161,12 +161,12 @@ if (require.main === module) {
 
 export default plugin;
 
-// Configurazione per organization (ogni org avrà la sua API key)
+// Configurazione per workspace (ogni workspace avrà la sua API key)
 plugin.configure({
   apiKey: {
     type: 'string',
     label: 'API Key',
-    description: 'Your organization API key',
+    description: 'Your workspace API key',
     required: true,
     secret: true,
   },
@@ -180,7 +180,7 @@ plugin.configure({
   },
 });
 
-// Transform sincrona - ogni org usa la propria config
+// Transform sincrona - ogni workspace usa la propria config
 plugin.transform({
   id: 'lookup-ip',
   name: 'Lookup IP',
@@ -190,13 +190,13 @@ plugin.transform({
 
   handler: async (input, config) => {
     const ip = input.entity.value;
-    const orgId = input.organizationId;
+    const orgId = input.workspaceId;
     const apiKey = config.apiKey;
 
-    console.log(`[Transform] Processing IP ${ip} for org: ${orgId}`);
+    console.log(`[Transform] Processing IP ${ip} for workspace: ${orgId}`);
     console.log(`[Transform] Using API key: ${apiKey?.substring(0, 10)}...`);
 
-    // Simula chiamata API con API key dell'organization
+    // Simula chiamata API con API key dell'workspace
     const mockResult = {
       country: 'US',
       city: 'Mountain View',
@@ -212,7 +212,7 @@ plugin.transform({
           label: 'IP Information',
           metadata: {
             source: 'multi-tenant-plugin',
-            organizationId: orgId,
+            workspaceId: orgId,
           },
         },
         {
@@ -229,12 +229,12 @@ plugin.transform({
           relationship: 'located_in',
         },
       ],
-      message: `Lookup complete for ${ip} (org: ${orgId})`,
+      message: `Lookup complete for ${ip} (workspace: ${orgId})`,
     };
   },
 });
 
-// Transform asincrona - webhook secret corretto per ogni org
+// Transform asincrona - webhook secret corretto per ogni workspace
 plugin.asyncTransform({
   id: 'deep-scan',
   name: 'Deep IP Scan',
@@ -244,9 +244,9 @@ plugin.asyncTransform({
 
   handler: async (input, config, job) => {
     const ip = input.entity.value;
-    const orgId = input.organizationId;
+    const orgId = input.workspaceId;
 
-    console.log(`[Async Transform] Starting scan for ${ip} (org: ${orgId})`);
+    console.log(`[Async Transform] Starting scan for ${ip} (workspace: ${orgId})`);
 
     await job.updateProgress(0, 'Starting deep scan...');
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -264,13 +264,13 @@ plugin.asyncTransform({
           value: `Deep scan results for ${ip}`,
           label: 'Scan Results',
           metadata: {
-            organizationId: orgId,
+            workspaceId: orgId,
             scanDate: new Date().toISOString(),
           },
         },
       ],
       edges: [],
-      message: `Scan complete for org: ${orgId}`,
+      message: `Scan complete for workspace: ${orgId}`,
     };
   },
 });
@@ -286,20 +286,20 @@ if (require.main === module) {
 
   console.log('\n🎉 Multi-Tenant Plugin Started!');
   console.log('\n📋 Automatic Endpoints:');
-  console.log('   POST /register     - Register new organization');
-  console.log('   POST /unregister   - Unregister organization');
+  console.log('   POST /register     - Register new workspace');
+  console.log('   POST /unregister   - Unregister workspace');
   console.log('   GET  /stats        - Get installation statistics');
   console.log('   GET  /manifest.json - Plugin manifest');
   console.log('   GET  /health       - Health check');
   console.log('\n🧪 Test Installation Flow:');
-  console.log('   # 1. Register an organization');
+  console.log('   # 1. Register an workspace');
   console.log('   curl -X POST http://localhost:3003/register \\');
   console.log('     -H "Content-Type: application/json" \\');
-  console.log('     -d \'{"organizationId":"org-test","organizationName":"Test Org","platformUrl":"https://relazio.io"}\'');
-  console.log('\n   # 2. Use a transform (with org header)');
+  console.log('     -d \'{"workspaceId":"workspace-test","workspaceName":"Test Org","platformUrl":"https://paranod.io"}\'');
+  console.log('\n   # 2. Use a transform (with workspace header)');
   console.log('   curl -X POST http://localhost:3003/lookup-ip \\');
   console.log('     -H "Content-Type: application/json" \\');
-  console.log('     -H "X-Organization-Id: org-test" \\');
+  console.log('     -H "X-Workspace-Id: workspace-test" \\');
   console.log('     -d \'{"transformId":"lookup-ip","input":{"entity":{"id":"1","type":"ip","value":"8.8.8.8"},"config":{"apiKey":"test-key-123"}}}\'');
   console.log('\n   # 3. Check stats');
   console.log('   curl http://localhost:3003/stats');

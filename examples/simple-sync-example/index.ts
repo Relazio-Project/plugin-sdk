@@ -1,4 +1,4 @@
-import { RelazioPlugin, createEntity, ResultBuilder } from '../../src';
+import { ParanodPlugin, createEntity, ResultBuilder } from '../../src';
 
 /**
  * ⚡ ESEMPIO SYNC - Domain Info Lookup
@@ -11,7 +11,7 @@ import { RelazioPlugin, createEntity, ResultBuilder } from '../../src';
  * - Uso di ResultBuilder per risultati puliti
  */
 
-const plugin = new RelazioPlugin({
+const plugin = new ParanodPlugin({
   id: 'domain-info',
   name: 'Domain Info Lookup',
   version: '1.0.0',

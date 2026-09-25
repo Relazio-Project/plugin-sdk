@@ -1,4 +1,4 @@
-import { RelazioPlugin, createEntity, ResultBuilder } from '../../src';
+import { ParanodPlugin, createEntity, ResultBuilder } from '../../src';
 
 /**
  * Esempio 1: Plugin Email Parser
@@ -11,11 +11,11 @@ import { RelazioPlugin, createEntity, ResultBuilder } from '../../src';
  * - ResultBuilder per costruire risultati
  */
 
-const plugin = new RelazioPlugin({
+const plugin = new ParanodPlugin({
   id: 'email-parser',
   name: 'Email Parser',
   version: '1.0.0',
-  author: 'Relazio Team',
+  author: 'PARANOD Team',
   description: 'Parses email addresses and extracts domain information',
   category: 'identity',
   icon: 'IconMail',

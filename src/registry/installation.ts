@@ -5,8 +5,8 @@ import type { WebhookSecretProvider } from '../jobs/progress';
  * Installazione di un'organizzazione
  */
 export interface Installation {
-  organizationId: string;
-  organizationName?: string;
+  workspaceId: string;
+  workspaceName?: string;
   webhookSecret: string;
   platformUrl: string;
   platformVersion?: string;
@@ -18,8 +18,8 @@ export interface Installation {
  * Request per registrare un'installazione
  */
 export interface RegistrationRequest {
-  organizationId: string;
-  organizationName?: string;
+  workspaceId: string;
+  workspaceName?: string;
   platformUrl: string;
   platformVersion?: string;
 }
@@ -38,9 +38,9 @@ export interface RegistrationResponse {
  * Storage interface per le installazioni
  */
 export interface InstallationStorage {
-  get(organizationId: string): Promise<Installation | null>;
-  set(organizationId: string, installation: Installation): Promise<void>;
-  delete(organizationId: string): Promise<boolean>;
+  get(workspaceId: string): Promise<Installation | null>;
+  set(workspaceId: string, installation: Installation): Promise<void>;
+  delete(workspaceId: string): Promise<boolean>;
   getAll(): Promise<Installation[]>;
 }
 
@@ -51,16 +51,16 @@ export interface InstallationStorage {
 export class MemoryStorage implements InstallationStorage {
   private storage = new Map<string, Installation>();
 
-  async get(organizationId: string): Promise<Installation | null> {
-    return this.storage.get(organizationId) || null;
+  async get(workspaceId: string): Promise<Installation | null> {
+    return this.storage.get(workspaceId) || null;
   }
 
-  async set(organizationId: string, installation: Installation): Promise<void> {
-    this.storage.set(organizationId, installation);
+  async set(workspaceId: string, installation: Installation): Promise<void> {
+    this.storage.set(workspaceId, installation);
   }
 
-  async delete(organizationId: string): Promise<boolean> {
-    return this.storage.delete(organizationId);
+  async delete(workspaceId: string): Promise<boolean> {
+    return this.storage.delete(workspaceId);
   }
 
   async getAll(): Promise<Installation[]> {
@@ -86,16 +86,20 @@ export class InstallationRegistry implements WebhookSecretProvider {
    * Implementazione WebhookSecretProvider
    * Richiesto dalla JobQueue per supporto multi-tenant
    */
-  async getSecret(organizationId: string): Promise<string | null> {
-    return this.getSecretSync(organizationId);
+  async getSecret(workspaceId: string): Promise<string | null> {
+    return this.getWebhookSecret(workspaceId);
+  }
+
+  async getInstallation(workspaceId: string): Promise<Installation | null> {
+    return this.storage.get(workspaceId);
   }
 
   /**
    * Versione sincrona per backward compatibility
    */
-  getSecretSync(organizationId: string): string | null {
+  getSecretSync(workspaceId: string): string | null {
     // Per MemoryStorage possiamo fare una chiamata sincrona
-    const installation = (this.storage as any).storage?.get(organizationId);
+    const installation = (this.storage as any).storage?.get(workspaceId);
     return installation?.webhookSecret || null;
   }
 
@@ -103,19 +107,29 @@ export class InstallationRegistry implements WebhookSecretProvider {
    * Registra una nuova installazione
    */
   async register(req: RegistrationRequest): Promise<RegistrationResponse> {
-    const { organizationId, organizationName, platformUrl, platformVersion } = req;
+    const { workspaceId, workspaceName, platformUrl, platformVersion } = req;
 
-    console.log(`[REGISTRY] Registration request from org: ${organizationId}`);
+    if (typeof workspaceId !== 'string' || !/^[a-zA-Z0-9_-]{1,200}$/.test(workspaceId)) {
+      throw new Error('Invalid workspaceId');
+    }
+    const platform = new URL(platformUrl);
+    const local = process.env.NODE_ENV !== 'production' && ['localhost', '127.0.0.1', '[::1]'].includes(platform.hostname);
+    if (platform.username || platform.password || platform.search || platform.hash ||
+        (platform.protocol !== 'https:' && !(local && platform.protocol === 'http:'))) {
+      throw new Error('platformUrl must be an HTTPS URL without credentials, query or fragment');
+    }
+
+    console.log(`[REGISTRY] Registration request from workspace: ${workspaceId}`);
 
     // Verifica se già registrato
-    const existing = await this.storage.get(organizationId);
+    const existing = await this.storage.get(workspaceId);
     if (existing) {
-      console.log(`[REGISTRY] Organization ${organizationId} already registered`);
+      console.log(`[REGISTRY] Workspace ${workspaceId} already registered`);
       return {
         webhookSecret: existing.webhookSecret,
         pluginId: this.pluginId,
         pluginVersion: this.pluginVersion,
-        message: 'Organization already registered',
+        message: 'Workspace already registered',
       };
     }
 
@@ -124,8 +138,8 @@ export class InstallationRegistry implements WebhookSecretProvider {
 
     // Crea installazione
     const installation: Installation = {
-      organizationId,
-      organizationName,
+      workspaceId,
+      workspaceName,
       webhookSecret,
       platformUrl,
       platformVersion,
@@ -133,44 +147,44 @@ export class InstallationRegistry implements WebhookSecretProvider {
     };
 
     // Salva
-    await this.storage.set(organizationId, installation);
+    await this.storage.set(workspaceId, installation);
 
-    console.log(`[REGISTRY] Successfully registered org ${organizationId}`);
+    console.log(`[REGISTRY] Successfully registered workspace ${workspaceId}`);
 
     return {
       webhookSecret,
       pluginId: this.pluginId,
       pluginVersion: this.pluginVersion,
-      message: 'Organization registered successfully',
+      message: 'Workspace registered successfully',
     };
   }
 
   /**
    * Ottieni webhook secret per un'organizzazione
    */
-  async getWebhookSecret(organizationId: string): Promise<string | null> {
-    const installation = await this.storage.get(organizationId);
+  async getWebhookSecret(workspaceId: string): Promise<string | null> {
+    const installation = await this.storage.get(workspaceId);
     return installation?.webhookSecret || null;
   }
 
   /**
    * Aggiorna timestamp ultimo uso
    */
-  async updateLastUsed(organizationId: string): Promise<void> {
-    const installation = await this.storage.get(organizationId);
+  async updateLastUsed(workspaceId: string): Promise<void> {
+    const installation = await this.storage.get(workspaceId);
     if (installation) {
       installation.lastUsed = new Date();
-      await this.storage.set(organizationId, installation);
+      await this.storage.set(workspaceId, installation);
     }
   }
 
   /**
    * Rimuovi un'installazione
    */
-  async unregister(organizationId: string): Promise<boolean> {
-    const deleted = await this.storage.delete(organizationId);
+  async unregister(workspaceId: string): Promise<boolean> {
+    const deleted = await this.storage.delete(workspaceId);
     if (deleted) {
-      console.log(`[REGISTRY] Organization ${organizationId} unregistered`);
+      console.log(`[REGISTRY] Workspace ${workspaceId} unregistered`);
     }
     return deleted;
   }
@@ -211,4 +225,3 @@ export class InstallationRegistry implements WebhookSecretProvider {
     return `whs_${crypto.randomBytes(32).toString('hex')}`;
   }
 }
-

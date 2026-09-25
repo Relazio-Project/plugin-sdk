@@ -9,7 +9,7 @@ import type {
 } from '../core/types';
 
 /**
- * Genera manifest JSON valido per la piattaforma Relazio
+ * Genera manifest JSON valido per la piattaforma PARANOD
  */
 export class ManifestGenerator {
   private config: PluginConfig;

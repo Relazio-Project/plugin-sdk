@@ -1,9 +1,9 @@
 /**
- * Tipi core per Relazio Plugin SDK
+ * Tipi core per PARANOD Plugin SDK
  */
 
 // Kept in sync with the platform's entity types
-// (relazio/src/features/osint/entity-types.ts). Addon transforms may emit any of
+// (paranod/src/features/osint/entity-types.ts). Addon transforms may emit any of
 // these; unknown strings are coerced to 'custom' by the platform.
 export type EntityType =
   | 'email'
@@ -136,7 +136,7 @@ export interface OSINTEdge {
 export interface TransformInput {
   entity: OSINTEntity; // Ora include già l'ID obbligatorio
   config?: Record<string, any>;
-  organizationId?: string; // ID organization per multi-tenancy
+  workspaceId?: string; // ID workspace per multi-tenancy
 }
 
 /**
@@ -242,6 +242,10 @@ export interface JobContext {
 export interface StartOptions {
   port: number;
   host?: string;
+  /** Bootstrap secret (at least 32 characters); defaults to ADDON_REGISTRATION_TOKEN. */
+  registrationToken?: string;
+  /** Externally reachable URL, including an optional reverse-proxy base path. */
+  publicUrl?: string;
   https?: {
     key: string;
     cert: string;
@@ -307,6 +311,7 @@ export interface PluginManifest {
  * Webhook payload dal plugin alla piattaforma
  */
 export interface WebhookPayload {
+  platformJobId?: string;
   jobId: string;
   status: 'processing' | 'completed' | 'failed';
   progress?: number;
@@ -323,7 +328,7 @@ export interface TransformRequest {
   transformId: string;
   input: TransformInput;
   callbackUrl: string;
-  organizationId?: string; // ⭐ ID organization
+  workspaceId?: string; // ⭐ ID workspace
 }
 
 /**

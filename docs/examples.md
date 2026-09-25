@@ -141,13 +141,13 @@ npm start
 
 **Location**: `examples/multi-tenant-plugin/`
 
-Demonstrates multi-tenant architecture with organization isolation.
+Demonstrates multi-tenant architecture with workspace isolation.
 
 **Features**:
 - Multi-tenant support
 - Registration/unregistration endpoints
-- Organization isolation
-- Per-organization webhook secrets
+- workspace isolation
+- per-workspace webhook secrets
 
 **Running**:
 ```bash
@@ -165,7 +165,7 @@ npm start
 | Understanding DNS patterns | `dns-toolkit` |
 | Basic email parsing | `email-parser` |
 | Advanced features exploration | `ip-lookup-complete` |
-| Multi-organization support | `multi-tenant-plugin` |
+| Multi-workspace support | `multi-tenant-plugin` |
 
 ## Common Patterns
 

@@ -1,10 +1,10 @@
 /**
- * Relazio Plugin SDK
- * SDK ufficiale per creare plugin esterni per Relazio
+ * PARANOD Plugin SDK
+ * SDK ufficiale per creare plugin esterni per PARANOD
  */
 
 // Core exports
-export { RelazioPlugin, OSINTPlugin } from './core/plugin';
+export { ParanodPlugin, OSINTPlugin } from './core/plugin';
 export { ManifestGenerator } from './core/manifest';
 
 // Types

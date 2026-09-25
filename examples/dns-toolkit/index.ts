@@ -1,4 +1,4 @@
-import { RelazioPlugin, createEntity, ResultBuilder } from '../../src';
+import { ParanodPlugin, createEntity, ResultBuilder } from '../../src';
 import dns from 'dns/promises';
 
 /**
@@ -12,11 +12,11 @@ import dns from 'dns/promises';
  * - Approccio scalabile senza dipendenze da tipi specifici
  */
 
-const plugin = new RelazioPlugin({
+const plugin = new ParanodPlugin({
   id: 'dns-toolkit',
   name: 'DNS Toolkit',
   version: '1.0.0',
-  author: 'Relazio Team',
+  author: 'PARANOD Team',
   description: 'Complete DNS analysis toolkit with A, MX, NS records',
   category: 'network',
   icon: 'IconNetwork',

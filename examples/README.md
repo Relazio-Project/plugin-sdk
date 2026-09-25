@@ -12,7 +12,7 @@ The best starting point for learning the SDK.
 
 **Features**:
 - Synchronous transform (< 30 seconds)
-- Creates multiple entity types (IP, Location, Organization, Note)
+- Creates multiple entity types (IP, Location, Workspace, Note)
 - Demonstrates `createEntity()` scalable approach
 - Uses `ResultBuilder` with automatic edge creation
 - Includes Markdown-formatted notes
@@ -70,7 +70,7 @@ cd ip-lookup-complete && npm install && npm start
 
 ### 6. multi-tenant-plugin
 
-Multi-organization support with registration endpoints.
+Multi-workspace support with registration endpoints.
 
 ```bash
 cd multi-tenant-plugin && npm install && npm start
@@ -85,7 +85,7 @@ cd multi-tenant-plugin && npm install && npm start
 | DNS analysis patterns | dns-toolkit |
 | Basic email parsing | email-parser |
 | Advanced SDK features | ip-lookup-complete |
-| Multi-organization support | multi-tenant-plugin |
+| Multi-workspace support | multi-tenant-plugin |
 
 ## Common Patterns
 

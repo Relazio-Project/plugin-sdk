@@ -68,11 +68,14 @@ export class JobProgressTracker implements JobContext {
    * Invia webhook alla piattaforma
    */
   private async sendWebhook(payload: WebhookPayload): Promise<void> {
-    const body = JSON.stringify(payload);
+    const platformJobId = new URL(this.callbackUrl).pathname.split('/').pop();
+    const body = JSON.stringify({ ...payload, platformJobId });
     const signature = this.hmac.generateHeader(body);
 
     try {
       const response = await fetch(this.callbackUrl, {
+        redirect: 'error',
+        signal: AbortSignal.timeout(10000),
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -95,7 +98,7 @@ export class JobProgressTracker implements JobContext {
  * Provider per webhook secrets multi-tenant
  */
 export interface WebhookSecretProvider {
-  getSecret(organizationId: string): Promise<string | null>;
+  getSecret(workspaceId: string): Promise<string | null>;
 }
 
 /**
@@ -104,12 +107,12 @@ export interface WebhookSecretProvider {
 export class InMemorySecretProvider implements WebhookSecretProvider {
   private secrets = new Map<string, string>();
 
-  setSecret(organizationId: string, secret: string): void {
-    this.secrets.set(organizationId, secret);
+  setSecret(workspaceId: string, secret: string): void {
+    this.secrets.set(workspaceId, secret);
   }
 
-  async getSecret(organizationId: string): Promise<string | null> {
-    return this.secrets.get(organizationId) || null;
+  async getSecret(workspaceId: string): Promise<string | null> {
+    return this.secrets.get(workspaceId) || null;
   }
 }
 
@@ -146,18 +149,18 @@ export class JobQueue {
   /**
    * Crea un nuovo job (multi-tenant)
    */
-  async createJobForOrganization(
+  async createJobForWorkspace(
     jobId: string,
     callbackUrl: string,
-    organizationId: string
+    workspaceId: string
   ): Promise<JobProgressTracker> {
     if (!this.secretProvider) {
       throw new Error('Secret provider not configured for multi-tenant mode');
     }
 
-    const secret = await this.secretProvider.getSecret(organizationId);
+    const secret = await this.secretProvider.getSecret(workspaceId);
     if (!secret) {
-      throw new Error(`Webhook secret not found for organization: ${organizationId}`);
+      throw new Error(`Webhook secret not found for workspace: ${workspaceId}`);
     }
 
     const job = new JobProgressTracker(jobId, callbackUrl, secret);

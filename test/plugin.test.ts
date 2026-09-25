@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { RelazioPlugin } from '../src/core/plugin';
+import { ParanodPlugin } from '../src/core/plugin';
 
-describe('RelazioPlugin', () => {
+describe('ParanodPlugin', () => {
   it('should create plugin instance', () => {
-    const plugin = new RelazioPlugin({
+    const plugin = new ParanodPlugin({
       id: 'test-plugin',
       name: 'Test Plugin',
       version: '1.0.0',
@@ -17,7 +17,7 @@ describe('RelazioPlugin', () => {
   });
 
   it('should register sync transform', () => {
-    const plugin = new RelazioPlugin({
+    const plugin = new ParanodPlugin({
       id: 'test',
       name: 'Test',
       version: '1.0.0',
@@ -40,7 +40,7 @@ describe('RelazioPlugin', () => {
   });
 
   it('should register async transform', () => {
-    const plugin = new RelazioPlugin({
+    const plugin = new ParanodPlugin({
       id: 'test',
       name: 'Test',
       version: '1.0.0',
@@ -64,7 +64,7 @@ describe('RelazioPlugin', () => {
   });
 
   it('should prevent duplicate transform IDs', () => {
-    const plugin = new RelazioPlugin({
+    const plugin = new ParanodPlugin({
       id: 'test',
       name: 'Test',
       version: '1.0.0',
@@ -95,7 +95,7 @@ describe('RelazioPlugin', () => {
   });
 
   it('should generate manifest', () => {
-    const plugin = new RelazioPlugin({
+    const plugin = new ParanodPlugin({
       id: 'test',
       name: 'Test Plugin',
       version: '1.0.0',

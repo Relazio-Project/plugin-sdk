@@ -1,74 +1,80 @@
-# Relazio Plugin SDK
+# PARANOD Plugin SDK
 
-Official SDK for building external plugins for the Relazio OSINT platform.
+Official SDK for building external plugins for the PARANOD OSINT platform.
 
-[![npm version](https://img.shields.io/npm/v/@relazio/plugin-sdk.svg)](https://www.npmjs.com/package/@relazio/plugin-sdk)
+Security update: registration now requires ADDON_REGISTRATION_TOKEN (at least 32 characters); set ADDON_PUBLIC_URL to the reachable addon origin. Use /manifest.json?token=TOKEN when installing. Transform/unregister requests require the per-workspace Bearer secret. Webhooks include the signed platformJobId. Upgrade the platform and addon together. Production platform URLs must use HTTPS; default storage and jobs remain in-memory and need a persistent backend for reliable restarts.
+
+[![npm version](https://img.shields.io/npm/v/@paranod/plugin-sdk.svg)](https://www.npmjs.com/package/@paranod/plugin-sdk)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 ## Overview
 
-The Relazio Plugin SDK provides a complete framework for building secure, scalable external plugins that extend the Relazio platform's capabilities with minimal boilerplate.
+The PARANOD Plugin SDK provides a complete framework for building secure, scalable external plugins that extend the PARANOD platform's capabilities with minimal boilerplate.
 
 ## Features
 
-- **Multi-Tenant Support**: Automatic organization management with isolated configurations
+- **Multi-Tenant Support**: Automatic workspace management with isolated configurations
 - **Sync & Async Transforms**: Support for both immediate and long-running operations
 - **Automatic Endpoints**: Built-in `/register`, `/unregister`, and `/manifest.json` endpoints
 - **Security**: HMAC-SHA256 signature generation and validation
 - **Job Management**: Progress tracking and webhook notifications for async operations
 - **TypeScript**: Full type safety and IntelliSense support
-- **Scalable Entity Creation**: Universal `createEntity()` function works with any entity type
+- **Typed Entity Creation**: `createEntity()` accepts the SDK `EntityType` union
 - **Automatic ID Generation**: Deterministic ID generation for entities and edges
 - **Result Builder**: Fluent API for constructing complex transform results
-- **Automatic Validation**: Format validation according to Relazio specifications
+- **Automatic Validation**: Format validation according to PARANOD specifications
 
 ## Installation
 
 ```bash
-npm install @relazio/plugin-sdk
+npm install @paranod/plugin-sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { RelazioPlugin, createEntity, ResultBuilder } from '@relazio/plugin-sdk';
+import {
+  ParanodPlugin,
+  createEntity,
+  ResultBuilder,
+} from "@paranod/plugin-sdk";
 
-const plugin = new RelazioPlugin({
-  id: 'my-plugin',
-  name: 'My Plugin',
-  version: '1.0.0',
-  author: 'Your Name',
-  description: 'Plugin description',
-  category: 'network'
+const plugin = new ParanodPlugin({
+  id: "my-plugin",
+  name: "My Plugin",
+  version: "1.0.0",
+  author: "Your Name",
+  description: "Plugin description",
+  category: "network",
 });
 
 plugin.transform({
-  id: 'my-transform',
-  name: 'My Transform',
-  description: 'Transforms data',
-  inputType: 'domain',
-  outputTypes: ['ip'],
-  
+  id: "my-transform",
+  name: "My Transform",
+  description: "Transforms data",
+  inputType: "domain",
+  outputTypes: ["ip"],
+
   async handler(input) {
     // Create entity using universal createEntity()
-    const ip = createEntity('ip', '8.8.8.8', {
-      label: 'Google DNS',
-      metadata: { country: 'US' }
+    const ip = createEntity("ip", "8.8.8.8", {
+      label: "Google DNS",
+      metadata: { country: "US" },
     });
-    
+
     // Build result with automatic edge creation
     return new ResultBuilder(input)
-      .addEntity(ip, 'resolves to', {
-        relationship: 'dns_resolution'
+      .addEntity(ip, "resolves to", {
+        relationship: "dns_resolution",
       })
-      .setMessage('DNS resolved successfully')
+      .setMessage("DNS resolved successfully")
       .build();
-  }
+  },
 });
 
-await plugin.start({ 
+await plugin.start({
   port: 3000,
-  multiTenant: true
+  multiTenant: true,
 });
 ```
 
@@ -84,28 +90,27 @@ await plugin.start({
 
 ## Entity & Edge Builders
 
-The SDK uses a dynamic, scalable approach that works with any entity type:
+The SDK provides one typed builder for every supported entity type:
 
 ### Universal Entity Creation
 
 ```typescript
-import { createEntity } from '@relazio/plugin-sdk';
+import { createEntity } from "@paranod/plugin-sdk";
 
-// Works with ANY type - even future types!
-const ip = createEntity('ip', '8.8.8.8', {
-  label: 'Google DNS',
-  metadata: { country: 'US', isp: 'Google LLC' }
+const ip = createEntity("ip", "8.8.8.8", {
+  label: "Google DNS",
+  metadata: { country: "US", isp: "Google LLC" },
 });
 
-const domain = createEntity('domain', 'example.com');
+const domain = createEntity("domain", "example.com");
 
-const location = createEntity('location', 'New York, NY', {
-  metadata: { latitude: 40.7, longitude: -74.0 }
+const location = createEntity("location", "New York, NY", {
+  metadata: { latitude: 40.7, longitude: -74.0 },
 });
 
-// Works with custom types too!
-const customEntity = createEntity('future-entity-type', 'value', {
-  metadata: { /* ... */ }
+// Use the explicit custom type for values without a dedicated EntityType.
+const customEntity = createEntity("custom", "value", {
+  metadata: { originalType: "future-entity-type" },
 });
 
 // ID automatically generated: "ip-c909e98d"
@@ -113,8 +118,9 @@ console.log(ip.id);
 ```
 
 **Advantages**:
-- No SDK updates needed for new entity types
-- Works with custom entity types
+
+- One API for all supported entity types
+- Explicit `custom` fallback for unsupported types
 - Type-safe with TypeScript
 - Deterministic ID generation
 
@@ -123,50 +129,45 @@ console.log(ip.id);
 Build complex results easily:
 
 ```typescript
-import { ResultBuilder, createEntity } from '@relazio/plugin-sdk';
+import { ResultBuilder, createEntity } from "@paranod/plugin-sdk";
 
 handler: async (input) => {
-  const location = createEntity('location', 'Mountain View, CA', {
-    metadata: { latitude: 37.386, longitude: -122.084 }
+  const location = createEntity("location", "Mountain View, CA", {
+    metadata: { latitude: 37.386, longitude: -122.084 },
   });
-  
-  const org = createEntity('organization', 'Google LLC', {
-    metadata: { asn: 'AS15169' }
+
+  const org = createEntity("organization", "Google LLC", {
+    metadata: { asn: "AS15169" },
   });
-  
+
   // Edges created automatically!
   return new ResultBuilder(input)
-    .addEntity(location, 'located in', {
-      relationship: 'geolocation'
+    .addEntity(location, "located in", {
+      relationship: "geolocation",
     })
-    .addEntity(org, 'assigned by', {
-      relationship: 'isp_assignment'
+    .addEntity(org, "assigned by", {
+      relationship: "isp_assignment",
     })
-    .setMessage('IP analyzed successfully')
+    .setMessage("IP analyzed successfully")
     .build();
-}
+};
 ```
 
 ### Supported Entity Types
 
-```typescript
-type EntityType = 
-  | 'email' | 'domain' | 'ip' | 'person' | 'username' 
-  | 'phone' | 'organization' | 'hash' | 'credential'
-  | 'social' | 'document' | 'note' | 'image' | 'video'
-  | 'location' | 'wallet' | 'transaction' | 'exchange'
-  | 'url' | 'maps' | 'custom';
-```
+The canonical list is exported as `EntityType` from the package and defined in
+[`src/core/types.ts`](./src/core/types.ts). Use `custom` plus metadata when no
+dedicated type exists.
 
 ## Multi-Tenant Architecture
 
-The SDK automatically handles organization registration and management:
+The SDK automatically handles workspace registration and management:
 
-1. Platform requests `/register` with organization details
+1. Platform requests `/register` with workspace details
 2. SDK generates unique webhook secret
-3. SDK stores organization configuration
+3. SDK stores workspace configuration
 4. Platform receives webhook secret
-5. Plugin processes requests with organization isolation
+5. Plugin processes requests with workspace isolation
 
 ## Security
 
@@ -181,12 +182,12 @@ All plugins must implement the following security requirements:
 
 ### Core Classes
 
-#### RelazioPlugin
+#### ParanodPlugin
 
 Main plugin class that manages transforms and server lifecycle.
 
 ```typescript
-const plugin = new RelazioPlugin(config: PluginConfig)
+const plugin = new ParanodPlugin(config: PluginConfig)
 ```
 
 #### Transform Registration
@@ -216,7 +217,7 @@ plugin.asyncTransform({
 #### Server Management
 
 ```typescript
-await plugin.start({ 
+await plugin.start({
   port: number,
   host?: string,
   multiTenant?: boolean,
@@ -255,7 +256,7 @@ MIT License - see [LICENSE](./LICENSE) file for details.
 
 ## Links
 
-- [npm Package](https://www.npmjs.com/package/@relazio/plugin-sdk)
-- [GitHub Repository](https://github.com/relazio/plugin-sdk)
-- [Issue Tracker](https://github.com/relazio/plugin-sdk/issues)
+- [npm Package](https://www.npmjs.com/package/@paranod/plugin-sdk)
+- [GitHub Repository](https://github.com/paranod/plugin-sdk)
+- [Issue Tracker](https://github.com/paranod/plugin-sdk/issues)
 - [Documentation](./docs/)

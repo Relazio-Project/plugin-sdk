@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Semantic Versioning](https://semver.workspace/spec/v2.0.0.html).
 
 ## [0.2.0] - 2025-12-22
 
@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Advantage: No SDK updates needed for new entity types
   - Advantage: Supports custom entity types without code changes
   - Advantage: Consistent, predictable API
-- Updated all entity types to align with Relazio external format
+- Updated all entity types to align with PARANOD external format
 - Added new entity types: `username`, `credential`, `social`, `document`, `image`, `video`, `wallet`, `transaction`, `exchange`, `maps`
 - `TransformInput.entity` is now of type `OSINTEntity` (includes ID)
 - Updated examples to use scalable approach
@@ -78,19 +78,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Initial public release
-- Multi-tenant support with automatic organization management
+- Multi-tenant support with automatic workspace management
 - Synchronous and asynchronous transform handlers
 - Built-in Express server with CORS and error handling
 - Automatic `/register`, `/unregister`, `/manifest.json` endpoints
 - HMAC-SHA256 signature utilities for webhook security
 - Job progress tracking for async operations
-- InstallationRegistry for organization management
+- InstallationRegistry for workspace management
 - In-memory storage (development) and custom storage support (production)
 - TypeScript support with full type definitions
 - Working examples (email-parser, dns-toolkit, async-subdomain-scanner, multi-tenant-plugin)
 
 ### Security
 - HMAC-SHA256 webhook signatures
-- Organization isolation
-- Unique webhook secrets per organization
+- workspace isolation
+- Unique webhook secrets per workspace
 - TLS certificate validation
